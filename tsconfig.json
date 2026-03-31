@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    // Output settings — tsup handles the actual compilation,
+    // but tsc still uses these for type checking and .d.ts generation
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+
+    // Library essentials — without these, consumers get no type information
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+
+    // Strict mode — non-negotiable for a library that handles financial data.
+    // Every `any` is a potential security hole where bad data slips through unchecked.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Module interop — makes imports work consistently between ESM and CJS
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Skip type checking node_modules — speeds up tsc significantly
+    "skipLibCheck": true,
+
+    // tsup's DTS plugin internally sets baseUrl, which TypeScript 6.0 deprecated.
+    // This silences the error until tsup updates. Common in the TS 5→6 transition.
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "tests"]
+}
