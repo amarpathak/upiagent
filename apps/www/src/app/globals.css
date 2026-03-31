@@ -1,17 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --foreground: #f0f0f0;
-  --muted: #888;
-  --border: #222;
-  --accent: #00ff88;
-  --accent-dim: #00cc6a;
-  --accent-glow: rgba(0, 255, 136, 0.15);
-  --cyan: #00e5ff;
-  --purple: #bf5af2;
-  --surface: #0d0d0d;
-  --surface-raised: #141414;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --muted: #71717a;
+  --border: #27272a;
+  --accent: #3b82f6;
+  --accent-dim: #2563eb;
+  --cyan: #22d3ee;
+  --surface: #0c0c0e;
+  --surface-raised: #131316;
 }
 
 @theme inline {
@@ -22,7 +20,6 @@
   --color-accent: var(--accent);
   --color-accent-dim: var(--accent-dim);
   --color-cyan: var(--cyan);
-  --color-purple: var(--purple);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --font-sans: var(--font-geist-sans);
@@ -33,15 +30,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
-}
-
-/* Neon glow on accent elements */
-.glow {
-  text-shadow: 0 0 10px var(--accent), 0 0 40px var(--accent-glow);
-}
-
-.glow-box {
-  box-shadow: 0 0 15px var(--accent-glow), inset 0 0 15px var(--accent-glow);
 }
 
 /* Terminal cursor blink */
@@ -70,17 +58,40 @@ body {
   animation: fadeInUp 0.3s ease-out both;
 }
 
-/* Noise grain overlay */
-.grain::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+/* Grid beam animation */
+@keyframes grid-beam {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* Pulse ring */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { opacity: 0.15; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Floating particles */
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-20px) translateX(10px); }
+  50% { transform: translateY(-10px) translateX(-5px); }
+  75% { transform: translateY(-25px) translateX(8px); }
+}
+
+/* Subtle gradient shift */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Scan line */
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }
 
 /* Scrollbar */

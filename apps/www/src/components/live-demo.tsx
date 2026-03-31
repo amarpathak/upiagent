@@ -27,7 +27,7 @@ function Field({
     <label className="flex flex-col gap-1">
       <span className="text-[10px] text-muted font-mono uppercase tracking-wider">{label}</span>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-        className={`bg-background border border-border rounded px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed ${mono ? "font-mono" : ""}`} />
+        className={`bg-background border border-border rounded px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-cyan disabled:opacity-40 disabled:cursor-not-allowed ${mono ? "font-mono" : ""}`} />
     </label>
   );
 }
@@ -42,7 +42,7 @@ function Select({
     <label className="flex flex-col gap-1">
       <span className="text-[10px] text-muted font-mono uppercase tracking-wider">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-        className="bg-background border border-border rounded px-2.5 py-1.5 text-sm text-foreground font-mono focus:outline-none focus:border-accent appearance-none disabled:opacity-40">
+        className="bg-background border border-border rounded px-2.5 py-1.5 text-sm text-foreground font-mono focus:outline-none focus:border-cyan appearance-none disabled:opacity-40">
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </label>
@@ -58,7 +58,7 @@ function Toggle({
   return (
     <label className={`flex items-start gap-2 ${disabled ? "opacity-40" : "cursor-pointer"}`}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled} className="mt-0.5 accent-accent" />
+        disabled={disabled} className="mt-0.5 accent-cyan" />
       <div>
         <span className="text-[10px] text-muted font-mono uppercase tracking-wider">{label}</span>
         {hint && <p className="text-[10px] text-muted/50 mt-0.5">{hint}</p>}
@@ -325,7 +325,7 @@ export function LiveDemo() {
               <button
                 onClick={() => { startPaymentFlow(); }}
                 disabled={loading}
-                className="px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors font-mono disabled:opacity-50">
+                className="px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors font-mono disabled:opacity-40">
                 {loading ? "Generating..." : "Start payment flow"}
               </button>
             </div>
@@ -346,7 +346,7 @@ export function LiveDemo() {
                 <div className="flex flex-col items-center gap-2 w-full max-w-xs">
                   <a
                     href={intentUrl}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-accent text-background text-sm font-semibold rounded-md hover:bg-accent/90 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
@@ -370,7 +370,7 @@ export function LiveDemo() {
                 </div>
                 <div className="space-y-1 font-mono text-[10px] max-h-24 overflow-y-auto">
                   {pollLog.map((line, i) => (
-                    <div key={i} className={`animate-line ${line.includes("✓") ? "text-accent" : "text-muted/50"}`}>
+                    <div key={i} className={`animate-line ${line.includes("✓") ? "text-cyan" : "text-muted/50"}`}>
                       {line}
                     </div>
                   ))}
@@ -393,23 +393,23 @@ export function LiveDemo() {
 
           {(step === "verifying" || step === "verified") && (
             <div className="flex-1 font-mono text-[12px] leading-6">
-              <div className="text-accent text-[11px] mb-3">
+              <div className="text-cyan text-[11px] mb-3">
                 ✦ payment detected on poll #{pollCount}
               </div>
 
               {verifyLines.slice(0, visibleLines).map((line, i) => (
                 <div key={i} className="animate-line" style={{ animationDelay: `${i * 30}ms` }}>
                   {line.text === "" ? <br /> : (
-                    <span className={line.type === "success" ? "text-accent font-medium" : "text-muted"}>
+                    <span className={line.type === "success" ? "text-cyan font-medium" : "text-muted"}>
                       {line.text}
                     </span>
                   )}
                 </div>
               ))}
-              {step === "verifying" && <span className="cursor-blink text-accent">▌</span>}
+              {step === "verifying" && <span className="cursor-blink text-cyan">▌</span>}
               {step === "verified" && p && (
-                <div className="mt-3 p-3 rounded border border-accent/20 bg-accent/[0.03]">
-                  <div className="text-[10px] text-accent mb-1.5 uppercase tracking-wider">verified</div>
+                <div className="mt-3 p-3 rounded border border-cyan/20 bg-accent/[0.03]">
+                  <div className="text-[10px] text-cyan mb-1.5 uppercase tracking-wider">verified</div>
                   <pre className="text-[11px] text-muted leading-5">
 {`{
   verified: true,
