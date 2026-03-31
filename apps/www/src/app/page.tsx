@@ -328,6 +328,59 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Story ─────────────────────────────────────────── */}
+      <section className="px-6 py-24 border-t border-border">
+        <div className="max-w-3xl mx-auto">
+          <p className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+            The story
+          </p>
+          <p className="text-2xl font-semibold tracking-tight mb-6">
+            Built in a day. By one person. For real.
+          </p>
+          <div className="space-y-4 text-sm text-muted leading-relaxed max-w-2xl">
+            <p>
+              Hi, I&apos;m <span className="text-foreground font-medium">Amar</span> — an indie hacker from India.
+              I built upiagent because every time I shipped a side project that needed payments,
+              Razorpay wanted merchant onboarding, KYC docs, and a 2% cut. For a ₹49 product,
+              that&apos;s ₹1 gone per sale. For a hobby project, that&apos;s friction I didn&apos;t need.
+            </p>
+            <p>
+              UPI is free. Everyone in India has it. The only missing piece was
+              <span className="text-foreground"> &quot;did they actually pay?&quot;</span> — so I built
+              an LLM that reads your bank&apos;s email alerts and answers that question automatically.
+            </p>
+            <p>
+              This entire thing — the npm package, the SaaS dashboard, the landing page —
+              was built in <span className="text-foreground font-medium">one day</span>.
+              It&apos;s not perfect. The{" "}
+              <a href="https://github.com/AmarPathak/upiagent/blob/main/docs/limitations-and-roadmap.md" className="text-foreground underline">
+                limitations are documented
+              </a>.
+              But the dashboard shows you exactly how well it&apos;s working — verification rates,
+              confidence scores, every evidence trail. You can see for yourself.
+            </p>
+            <p>
+              If you&apos;re an indie hacker, a hobby dev, or a small shop owner who just wants
+              to accept UPI without the enterprise BS — this is for you.
+            </p>
+          </div>
+
+          <div className="mt-8 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-surface-raised border border-border flex items-center justify-center text-sm font-mono">
+              A
+            </div>
+            <div>
+              <p className="text-sm font-medium">Amar Pathak</p>
+              <p className="text-xs text-muted">
+                <a href="https://github.com/AmarPathak" className="hover:text-foreground transition-colors">@AmarPathak</a>
+                {" · "}
+                <a href="https://twitter.com/AmarPathak" className="hover:text-foreground transition-colors">Twitter</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ──────────────────────────────────────────── */}
       <section className="relative px-6 py-32 border-t border-border overflow-hidden">
         {/* Gradient */}
