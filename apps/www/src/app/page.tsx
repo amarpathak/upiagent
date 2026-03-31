@@ -76,34 +76,36 @@ export default function Home() {
 
         <div className="relative z-10 max-w-3xl w-full">
           <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border text-xs font-mono text-muted mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/30 text-xs font-mono text-accent/80 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               v0.1.0 — open source
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1]">
               UPI payments
               <br />
-              <span className="text-muted">without a gateway.</span>
+              <span className="text-accent glow">without a gateway.</span>
             </h1>
 
-            <p className="mt-6 text-lg text-muted max-w-xl leading-relaxed">
+            <p className="mt-6 text-lg text-foreground/70 max-w-xl leading-relaxed">
               Generate QR codes. Customers pay via any UPI app.
               Verify payments through Gmail bank alerts + LLM parsing.
-              No Razorpay. No fees. No merchant onboarding.
+              <span className="text-cyan"> No Razorpay.</span>
+              <span className="text-purple"> No fees.</span>
+              <span className="text-accent"> No merchant onboarding.</span>
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-12">
             <a
               href="https://github.com/AmarPathak/upiagent"
-              className="inline-flex items-center justify-center px-5 py-2.5 bg-foreground text-background font-medium text-sm rounded-md hover:bg-foreground/90 transition-colors"
+              className="inline-flex items-center justify-center px-5 py-2.5 bg-accent text-background font-semibold text-sm rounded-md hover:bg-accent-dim transition-colors glow-box"
             >
               View on GitHub
             </a>
             <a
               href="#quickstart"
-              className="inline-flex items-center justify-center px-5 py-2.5 border border-border text-sm font-medium rounded-md hover:bg-surface transition-colors"
+              className="inline-flex items-center justify-center px-5 py-2.5 border border-accent/30 text-accent text-sm font-medium rounded-md hover:bg-accent/10 transition-colors"
             >
               Get started
             </a>
@@ -116,7 +118,7 @@ export default function Home() {
       {/* ── Live Demo ────────────────────────────────────── */}
       <section id="demo" className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Try it
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-8">
@@ -129,7 +131,7 @@ export default function Home() {
       {/* ── How it works ─────────────────────────────────── */}
       <section className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             How it works
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-12">
@@ -159,7 +161,7 @@ export default function Home() {
       {/* ── Code ─────────────────────────────────────────── */}
       <section id="quickstart" className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Quick start
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-8">
@@ -176,7 +178,7 @@ export default function Home() {
       {/* ── Security ─────────────────────────────────────── */}
       <section className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Security
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-4">
@@ -198,7 +200,7 @@ export default function Home() {
       {/* ── Why LLM ──────────────────────────────────────── */}
       <section className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Why LLM, not regex
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-8">
@@ -229,7 +231,7 @@ export default function Home() {
       {/* ── Next.js ──────────────────────────────────────── */}
       <section className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Framework ready
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-8">
@@ -243,7 +245,7 @@ export default function Home() {
       {/* ── Pricing ──────────────────────────────────────── */}
       <section className="px-6 py-24 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-mono text-xs text-muted uppercase tracking-widest mb-2">
+          <h2 className="font-mono text-xs text-cyan uppercase tracking-widest mb-2">
             Cost
           </h2>
           <p className="text-2xl font-semibold tracking-tight mb-8">
@@ -262,7 +264,7 @@ export default function Home() {
               <tbody className="font-mono">
                 <tr className="border-b border-border/50">
                   <td className="py-3">gpt-4o-mini</td>
-                  <td className="py-3 text-accent">~$0.0001</td>
+                  <td className="py-3 text-accent glow">~$0.0001</td>
                   <td className="py-3 text-muted">~$0.10</td>
                 </tr>
                 <tr className="border-b border-border/50">
@@ -298,13 +300,13 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
               href="https://github.com/AmarPathak/upiagent"
-              className="inline-flex items-center justify-center px-6 py-3 bg-foreground text-background font-medium text-sm rounded-md hover:bg-foreground/90 transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 bg-accent text-background font-semibold text-sm rounded-md hover:bg-accent-dim transition-colors glow-box"
             >
               GitHub
             </a>
             <a
               href="#quickstart"
-              className="inline-flex items-center justify-center px-6 py-3 border border-border text-sm font-medium rounded-md hover:bg-surface transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 border border-accent/30 text-accent text-sm font-medium rounded-md hover:bg-accent/10 transition-colors"
             >
               Documentation
             </a>
@@ -325,10 +327,10 @@ export default function Home() {
 function Step({ num, title, desc }: { num: string; title: string; desc: string }) {
   return (
     <div className="flex gap-5">
-      <div className="font-mono text-xs text-accent pt-1 shrink-0">{num}</div>
+      <div className="font-mono text-xs text-cyan pt-1 shrink-0">{num}</div>
       <div>
-        <div className="font-semibold mb-1">{title}</div>
-        <p className="text-sm text-muted leading-relaxed">{desc}</p>
+        <div className="font-semibold mb-1 text-foreground">{title}</div>
+        <p className="text-sm text-foreground/60 leading-relaxed">{desc}</p>
       </div>
     </div>
   );

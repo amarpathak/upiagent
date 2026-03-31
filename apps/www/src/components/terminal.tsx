@@ -34,9 +34,9 @@ export function Terminal() {
   }, [visibleLines]);
 
   return (
-    <div className="rounded-lg border border-border bg-surface overflow-hidden">
+    <div className="rounded-lg border border-accent/20 bg-surface overflow-hidden glow-box">
       {/* Title bar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-surface-raised">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-accent/10 bg-surface-raised">
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-border" />
           <div className="w-2.5 h-2.5 rounded-full bg-border" />

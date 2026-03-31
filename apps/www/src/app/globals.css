@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --muted: #71717a;
-  --border: #27272a;
-  --accent: #22c55e;
-  --accent-dim: #166534;
-  --surface: #18181b;
-  --surface-raised: #1c1c1f;
+  --background: #050505;
+  --foreground: #f0f0f0;
+  --muted: #888;
+  --border: #222;
+  --accent: #00ff88;
+  --accent-dim: #00cc6a;
+  --accent-glow: rgba(0, 255, 136, 0.15);
+  --cyan: #00e5ff;
+  --purple: #bf5af2;
+  --surface: #0d0d0d;
+  --surface-raised: #141414;
 }
 
 @theme inline {
@@ -18,6 +21,8 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-dim: var(--accent-dim);
+  --color-cyan: var(--cyan);
+  --color-purple: var(--purple);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --font-sans: var(--font-geist-sans);
@@ -28,6 +33,15 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Neon glow on accent elements */
+.glow {
+  text-shadow: 0 0 10px var(--accent), 0 0 40px var(--accent-glow);
+}
+
+.glow-box {
+  box-shadow: 0 0 15px var(--accent-glow), inset 0 0 15px var(--accent-glow);
 }
 
 /* Terminal cursor blink */
@@ -63,13 +77,13 @@ body {
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: 0.02;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
 }
 
-/* Code block scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
