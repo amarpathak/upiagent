@@ -5,9 +5,8 @@ import { useEffect, useState, useRef } from "react";
 const nodes = [
   { id: "qr", label: "Generate QR", sub: "upi://pay intent", icon: "grid" },
   { id: "pay", label: "Customer pays", sub: "any UPI app", icon: "phone" },
-  { id: "gmail", label: "Email arrives", sub: "bank alert", icon: "mail" },
-  { id: "llm", label: "LLM parses", sub: "structured output", icon: "cpu" },
-  { id: "verify", label: "Verified", sub: "4-layer pipeline", icon: "shield" },
+  { id: "connect", label: "Connect source", sub: "Gmail, SMS, more", icon: "plug" },
+  { id: "ai", label: "AI verifies", sub: "LLM + security", icon: "cpu" },
 ];
 
 function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
@@ -29,29 +28,21 @@ function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
           <circle cx="12" cy="18" r="1" />
         </svg>
       );
-    case "mail":
+    case "plug":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-          <path d="M22 4L12 13L2 4" />
+          <path d="M12 22v-5" />
+          <path d="M9 8V2" /><path d="M15 8V2" />
+          <path d="M18 8v4a6 6 0 01-12 0V8h12z" />
         </svg>
       );
     case "cpu":
       return (
-        <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round">
-          <rect x="4" y="4" width="16" height="16" rx="2" />
-          <rect x="9" y="9" width="6" height="6" rx="1" />
-          <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
-          <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
-          <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="15" x2="23" y2="15" />
-          <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="15" x2="4" y2="15" />
-        </svg>
-      );
-    case "shield":
-      return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <path d="M9 12l2 2 4-4" />
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+          <path d="M15 13l2-2-2-2" />
         </svg>
       );
     default:

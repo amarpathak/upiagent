@@ -75,6 +75,7 @@ export function LiveDemo() {
   const [merchantName, setMerchantName] = useState("upiagent demo");
   const [amount, setAmount] = useState("49");
   const [note, setNote] = useState("Order #2847");
+  const [accountHolder, setAccountHolder] = useState("AMAR KUMAR PATHAK");
   const [provider, setProvider] = useState("gemini");
   const [addPaisa, setAddPaisa] = useState(true);
 
@@ -289,7 +290,8 @@ export function LiveDemo() {
         <div className="md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border p-4 space-y-3 overflow-hidden">
           <div className="text-[10px] text-muted font-mono uppercase tracking-wider mb-3">Configuration</div>
           <Field label="Merchant UPI" value={upiId} onChange={setUpiId} mono disabled={locked} />
-          <Field label="Name" value={merchantName} onChange={setMerchantName} disabled={locked} />
+          <Field label="Brand name" value={merchantName} onChange={setMerchantName} disabled={locked} />
+          <Field label="Bank account name" value={accountHolder} onChange={setAccountHolder} disabled={locked} />
           <Field label="Amount (₹)" value={amount} onChange={setAmount} type="number" mono disabled={locked} />
           <Field label="Note" value={note} onChange={setNote} disabled={locked} />
           <Toggle label="Add paisa" checked={addPaisa} onChange={setAddPaisa} disabled={locked}
@@ -340,6 +342,15 @@ export function LiveDemo() {
                 </div>
               )}
               <p className="font-mono text-sm text-foreground">₹{finalAmount}</p>
+
+              {/* UPI name heads-up */}
+              {accountHolder && (
+                <div className="w-full max-w-xs p-2 rounded-md bg-yellow-500/5 border border-yellow-500/20">
+                  <p className="text-[11px] text-yellow-500/80 text-center leading-relaxed">
+                    UPI app will show <span className="font-semibold">&quot;{accountHolder}&quot;</span> as recipient — that&apos;s the bank account for <span className="font-medium">{merchantName}</span>
+                  </p>
+                </div>
+              )}
 
               {/* Pay button — opens UPI app on mobile, like PayPal buttons */}
               {intentUrl && (
