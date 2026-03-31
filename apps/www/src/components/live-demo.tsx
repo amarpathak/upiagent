@@ -73,7 +73,7 @@ const POLL_INTERVAL = 5000; // 5 seconds
 export function LiveDemo() {
   const [upiId, setUpiId] = useState("amarpathakhdfc@ybl");
   const [merchantName, setMerchantName] = useState("upiagent demo");
-  const [amount, setAmount] = useState("49");
+  const [amount, setAmount] = useState("1");
   const [note, setNote] = useState("Order #2847");
   const [accountHolder, setAccountHolder] = useState("AMAR KUMAR PATHAK");
   const [provider, setProvider] = useState("gemini");
@@ -83,6 +83,7 @@ export function LiveDemo() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [intentUrl, setIntentUrl] = useState("");
   const [txnId, setTxnId] = useState("");
+  const [showConfig, setShowConfig] = useState(false);
   const [finalAmount, setFinalAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [waitSeconds, setWaitSeconds] = useState(0);
@@ -124,8 +125,8 @@ export function LiveDemo() {
     setError("");
 
     const num = parseFloat(amount);
-    if (!num || num < 1) {
-      setError("Amount must be >= 1");
+    if (!num || num < 1 || num > 3) {
+      setError("Demo amount: ₹1–3 only");
       return;
     }
 
@@ -186,7 +187,7 @@ export function LiveDemo() {
       if (aborted.current) return;
       polls++;
       setPollCount(polls);
-      setPollLog((prev) => [...prev, `poll #${polls}: checking Gmail for ₹${finalAmt}...`]);
+      setPollLog((prev) => [...prev, `poll #${polls}: checking sources for ₹${finalAmt}...`]);
 
       const result = await pollVerify(finalAmt, polls);
 
@@ -254,7 +255,7 @@ export function LiveDemo() {
   const p = verifyResult?.payment;
 
   const verifyLines = p ? [
-    { text: `↳ gmail    found bank alert from ${p.bankName}`, type: "dim" },
+    { text: `↳ source   found bank alert from ${p.bankName}`, type: "dim" },
     { text: `↳ llm      parsed with ${model}`, type: "dim" },
     { text: `↳ llm      ₹${p.amount} ref:${p.upiReferenceId} from:${p.senderName}`, type: "dim" },
     { text: `↳ security [format ✓] [amount ✓] [time ✓] [dedup ✓]`, type: "dim" },
@@ -287,8 +288,15 @@ export function LiveDemo() {
 
       <div className="flex flex-col md:flex-row">
         {/* Config panel */}
-        <div className="md:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border p-4 space-y-3 overflow-hidden">
-          <div className="text-[10px] text-muted font-mono uppercase tracking-wider mb-3">Configuration</div>
+        <div className={`shrink-0 border-b md:border-b-0 md:border-r border-border overflow-hidden transition-all ${showConfig ? "md:w-60 p-4" : "md:w-10 p-2"}`}>
+          <button
+            onClick={() => setShowConfig(!showConfig)}
+            className="text-[10px] text-muted font-mono uppercase tracking-wider mb-3 hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <svg className={`w-3 h-3 transition-transform ${showConfig ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+            {showConfig ? "Config" : ""}
+          </button>
+          <div className={showConfig ? "space-y-3" : "hidden"}>
           <Field label="Merchant UPI" value={upiId} onChange={setUpiId} mono disabled={locked} />
           <Field label="Brand name" value={merchantName} onChange={setMerchantName} disabled={locked} />
           <Field label="Bank account name" value={accountHolder} onChange={setAccountHolder} disabled={locked} />
@@ -302,6 +310,7 @@ export function LiveDemo() {
               { value: "openai", label: "OpenAI" },
               { value: "anthropic", label: "Anthropic" },
             ]} />
+          </div>
         </div>
 
         {/* Interactive area */}

@@ -420,7 +420,7 @@ export default function Home() {
         {/* Giant wordmark */}
         <div className="relative px-6 pt-24 pb-8">
           <div className="max-w-5xl mx-auto">
-            <span className="block font-mono font-bold text-[clamp(4rem,15vw,11rem)] leading-[0.85] tracking-[-0.06em] text-[#1d1d1f]/[0.06] select-none">
+            <span className="block font-mono font-bold text-[clamp(4rem,15vw,11rem)] leading-[0.85] tracking-[-0.06em] text-[#1d1d1f]/[0.12] select-none">
               upi
               <br />
               agent
@@ -430,7 +430,7 @@ export default function Home() {
 
         {/* Links row */}
         <div className="relative px-6 pb-16">
-          <div className="max-w-5xl mx-auto flex flex-wrap gap-x-14 gap-y-8">
+          <div className="max-w-5xl mx-auto flex flex-wrap justify-end gap-x-14 gap-y-8">
             <div className="flex flex-col gap-2.5">
               <span className="font-mono text-[10px] text-[#1d1d1f]/30 uppercase tracking-[0.2em]">Product</span>
               <a href="#how" className="text-[13px] text-[#1d1d1f]/50 hover:text-[#1d1d1f] transition-colors">How it works</a>
