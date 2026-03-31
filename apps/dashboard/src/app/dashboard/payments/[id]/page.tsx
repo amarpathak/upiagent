@@ -84,7 +84,7 @@ export default async function PaymentDetailPage({
 
   const { data: merchant } = await supabase
     .from("merchants")
-    .select("id")
+    .select("id, name, display_name, upi_id, upi_account_holder, contact_email")
     .eq("user_id", user.id)
     .single();
 
@@ -177,14 +177,51 @@ export default async function PaymentDetailPage({
       {payment.qr_data_url && (
         <>
           <Separator />
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">QR Code</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={payment.qr_data_url}
+          <div className="flex flex-col md:flex-row gap-6">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">QR Code</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={payment.qr_data_url}
               alt="Payment QR Code"
               className="w-48 h-48 rounded-lg border"
             />
+            </div>
+
+            {/* Customer-facing trust info */}
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground mb-3">Customer sees</p>
+              <Card className="border-border">
+                <CardContent className="pt-4 space-y-3">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {merchant?.display_name || merchant?.name}
+                    </p>
+                    {merchant?.upi_account_holder && (
+                      <p className="text-xs text-muted-foreground">
+                        UPI account: {merchant.upi_account_holder}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-xl font-mono font-bold">
+                    ₹{Number(payment.amount_with_paisa ?? payment.amount).toFixed(2)}
+                  </div>
+                  {payment.note && (
+                    <p className="text-xs text-muted-foreground">{payment.note}</p>
+                  )}
+                  <div className="pt-2 border-t border-border space-y-1">
+                    <p className="text-[11px] text-muted-foreground">
+                      Paying to: <span className="font-mono">{merchant?.upi_id}</span>
+                    </p>
+                    {merchant?.contact_email && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Contact: {merchant.contact_email}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </>
       )}

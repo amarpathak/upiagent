@@ -12,7 +12,6 @@ export async function updateMerchant(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    console.error("Failed to get user:", userError);
     return { error: "Not authenticated" };
   }
 
@@ -23,7 +22,6 @@ export async function updateMerchant(formData: FormData) {
     .single();
 
   if (merchantError || !merchant) {
-    console.error("Failed to get merchant:", merchantError);
     return { error: "Merchant not found" };
   }
 
@@ -32,18 +30,24 @@ export async function updateMerchant(formData: FormData) {
     ? enabledSourcesRaw.split(",").filter(Boolean)
     : [];
 
+  const name = formData.get("name") as string;
+
   const { error } = await supabase
     .from("merchants")
     .update({
-      name: formData.get("name") as string,
+      name,
+      display_name: name,
       upi_id: formData.get("upi_id") as string,
-      gmail_client_id: formData.get("gmail_client_id") as string,
-      gmail_client_secret: formData.get("gmail_client_secret") as string,
-      gmail_refresh_token: formData.get("gmail_refresh_token") as string,
-      llm_provider: formData.get("llm_provider") as string,
-      llm_api_key: formData.get("llm_api_key") as string,
-      webhook_url: formData.get("webhook_url") as string,
+      upi_account_holder: (formData.get("upi_account_holder") as string) || null,
+      contact_email: (formData.get("contact_email") as string) || null,
+      contact_phone: (formData.get("contact_phone") as string) || null,
+      website_url: (formData.get("website_url") as string) || null,
+      description: (formData.get("description") as string) || null,
+      llm_provider: (formData.get("llm_provider") as string) || "gemini",
+      llm_api_key: (formData.get("llm_api_key") as string) || null,
+      webhook_url: (formData.get("webhook_url") as string) || null,
       enabled_sources: enabledSources,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", merchant.id);
 

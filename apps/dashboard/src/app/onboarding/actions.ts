@@ -12,17 +12,21 @@ export async function createMerchant(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    console.error("Failed to get user:", userError);
     redirect("/login");
   }
 
   const name = formData.get("name") as string;
   const upiId = formData.get("upi_id") as string;
+  const upiAccountHolder = (formData.get("upi_account_holder") as string) || null;
+  const contactEmail = (formData.get("contact_email") as string) || null;
 
   const { error } = await supabase.from("merchants").insert({
     user_id: user.id,
     name,
+    display_name: name,
     upi_id: upiId,
+    upi_account_holder: upiAccountHolder,
+    contact_email: contactEmail,
   });
 
   if (error) {

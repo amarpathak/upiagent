@@ -29,6 +29,12 @@ interface Merchant {
   llm_api_key: string | null;
   webhook_url: string | null;
   enabled_sources: string[] | null;
+  display_name: string | null;
+  upi_account_holder: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  website_url: string | null;
+  description: string | null;
 }
 
 export function SettingsForm({ merchant }: { merchant: Merchant }) {
@@ -66,26 +72,44 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
       {/* Merchant Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Merchant Info</CardTitle>
-          <CardDescription>Your business details</CardDescription>
+          <CardTitle>Business Info</CardTitle>
+          <CardDescription>Shown to customers on the payment page</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name">Business name</Label>
+            <Label htmlFor="name">Brand / business name</Label>
             <Input id="name" name="name" defaultValue={merchant.name} required />
+            <p className="text-xs text-muted-foreground">Your brand name — shown on payment page</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="upi_id">UPI ID</Label>
-            <Input
-              id="upi_id"
-              name="upi_id"
-              defaultValue={merchant.upi_id}
-              required
-              className="font-mono"
-            />
+            <Input id="upi_id" name="upi_id" defaultValue={merchant.upi_id} required className="font-mono" />
+            <p className="text-xs text-muted-foreground">Personal or business — both work</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="upi_account_holder">Name on bank account</Label>
+            <Input id="upi_account_holder" name="upi_account_holder" defaultValue={merchant.upi_account_holder || ""} placeholder="AMAR KUMAR PATHAK" />
             <p className="text-xs text-muted-foreground">
-              The UPI ID where customers send payments
+              The real name shown in UPI apps. Helps customers trust the payment when your brand name is different.
             </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="contact_email">Contact email</Label>
+              <Input id="contact_email" name="contact_email" type="email" defaultValue={merchant.contact_email || ""} placeholder="you@example.com" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="contact_phone">Contact phone</Label>
+              <Input id="contact_phone" name="contact_phone" defaultValue={merchant.contact_phone || ""} placeholder="+91..." />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="website_url">Website</Label>
+            <Input id="website_url" name="website_url" type="url" defaultValue={merchant.website_url || ""} placeholder="https://yoursite.com" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="description">Short description</Label>
+            <Input id="description" name="description" defaultValue={merchant.description || ""} placeholder="What you sell in one line" />
           </div>
         </CardContent>
       </Card>
