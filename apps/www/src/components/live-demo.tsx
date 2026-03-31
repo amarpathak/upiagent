@@ -335,43 +335,62 @@ export function LiveDemo() {
 
           {step === "waiting" && (
             <div className="flex-1 flex flex-col items-center gap-3">
-              {qrDataUrl && (
-                <div className="rounded-lg overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrDataUrl} alt="UPI QR Code" width={180} height={180} />
-                </div>
-              )}
-              <p className="font-mono text-sm text-foreground">₹{finalAmount}</p>
+              {/* Customer payment page preview */}
+              <div className="text-[10px] text-muted/50 font-mono uppercase tracking-wider self-start mb-1">
+                Customer payment page
+              </div>
 
-              {/* UPI name heads-up */}
-              {accountHolder && (
-                <div className="w-full max-w-xs p-2 rounded-md bg-yellow-500/5 border border-yellow-500/20">
-                  <p className="text-[11px] text-yellow-500/80 text-center leading-relaxed">
-                    UPI app will show <span className="font-semibold">&quot;{accountHolder}&quot;</span> as recipient — that&apos;s the bank account for <span className="font-medium">{merchantName}</span>
-                  </p>
+              <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 space-y-4">
+                {/* Merchant header */}
+                <div className="text-center space-y-1">
+                  <div className="w-10 h-10 rounded-full bg-surface-raised border border-border mx-auto flex items-center justify-center text-sm font-semibold">
+                    {merchantName.charAt(0).toUpperCase()}
+                  </div>
+                  <p className="font-semibold text-foreground">{merchantName}</p>
+                  {note && <p className="text-xs text-muted">{note}</p>}
                 </div>
-              )}
 
-              {/* Pay button — opens UPI app on mobile, like PayPal buttons */}
-              {intentUrl && (
-                <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+                {/* Amount */}
+                <div className="text-center">
+                  <p className="text-3xl font-mono font-bold text-foreground">₹{finalAmount}</p>
+                </div>
+
+                {/* QR */}
+                {qrDataUrl && (
+                  <div className="flex justify-center">
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrDataUrl} alt="UPI QR Code" width={160} height={160} />
+                    </div>
+                  </div>
+                )}
+
+                {/* UPI name heads-up */}
+                {accountHolder && (
+                  <div className="p-2 rounded-md bg-yellow-500/5 border border-yellow-500/15">
+                    <p className="text-[11px] text-yellow-500/80 text-center leading-relaxed">
+                      Your UPI app will show <span className="font-semibold">&quot;{accountHolder}&quot;</span> — that&apos;s the account holder for {merchantName}
+                    </p>
+                  </div>
+                )}
+
+                {/* Pay button */}
+                {intentUrl && (
                   <a
                     href={intentUrl}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-foreground text-background text-sm font-semibold rounded-lg hover:bg-foreground/90 transition-colors"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-                    </svg>
                     Pay ₹{finalAmount} with UPI
                   </a>
-                  <p className="text-[10px] text-muted/50 text-center">
-                    Opens GPay, PhonePe, Paytm — or scan QR above
-                  </p>
-                </div>
-              )}
+                )}
 
-              {/* Polling status */}
-              <div className="w-full max-w-xs mt-2 p-3 rounded border border-border bg-background">
+                <p className="text-[10px] text-muted/40 text-center">
+                  Paying to <span className="font-mono">{upiId}</span> · Scan QR or tap button
+                </p>
+              </div>
+
+              {/* Polling status — below the payment page */}
+              <div className="w-full max-w-sm mt-1 p-3 rounded border border-border bg-background">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
                   <span className="text-[11px] font-mono text-muted">Verifying</span>
