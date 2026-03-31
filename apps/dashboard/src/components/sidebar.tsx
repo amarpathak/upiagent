@@ -11,7 +11,8 @@ const navItems = [
   { href: "/dashboard/api-keys", label: "API Keys", icon: "#" },
   { href: "/dashboard/webhooks", label: "Webhooks", icon: ">" },
   { href: "/dashboard/embed", label: "Embed", icon: "<" },
-  { href: "/dashboard/operations", label: "Operations", icon: "%" },
+  { href: "/dashboard/docs", label: "Docs", icon: "?" },
+  { href: "/dashboard/ops", label: "Operations", icon: "%" },
 ];
 
 interface SidebarProps {
