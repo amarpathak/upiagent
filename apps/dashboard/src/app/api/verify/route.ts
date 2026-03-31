@@ -61,7 +61,7 @@ function extractBody(payload: { mimeType?: string | null; body?: { data?: string
  * Called by the payment detail page to poll for verification.
  */
 export async function POST(req: Request) {
-  const { paymentId } = await req.json();
+  const { paymentId, force } = await req.json();
 
   if (!paymentId) {
     return NextResponse.json({ error: "paymentId required" }, { status: 400 });
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
 
-  if (payment.status !== "pending") {
+  if (payment.status !== "pending" && payment.status !== "expired" && !force) {
     return NextResponse.json({
       verified: payment.status === "verified",
       status: payment.status,
@@ -86,8 +86,8 @@ export async function POST(req: Request) {
     });
   }
 
-  // Check if expired
-  if (payment.expires_at && new Date(payment.expires_at) < new Date()) {
+  // Check if expired (skip if force=true for manual retries)
+  if (!force && payment.expires_at && new Date(payment.expires_at) < new Date()) {
     await supabase
       .from("payments")
       .update({ status: "expired" })
@@ -112,8 +112,9 @@ export async function POST(req: Request) {
   oauth2Client.setCredentials({ refresh_token: merchant.gmail_refresh_token });
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-  // Search for recent bank alerts
-  const afterTimestamp = Math.floor((Date.now() - 10 * 60 * 1000) / 1000); // last 10 min
+  // Search for recent bank alerts — wider window for manual retries
+  const lookbackMs = force ? 60 * 60 * 1000 : 10 * 60 * 1000; // 1 hour if force, 10 min otherwise
+  const afterTimestamp = Math.floor((Date.now() - lookbackMs) / 1000);
   const query = `from:alerts@hdfcbank.bank.in after:${afterTimestamp}`;
 
   try {

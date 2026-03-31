@@ -104,8 +104,8 @@ export default async function DashboardPage() {
 
   // Calculate stats
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+  const todayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   // For "all time" counts, we query without date filter
   const { count: allTimeCount } = await supabase
@@ -115,30 +115,24 @@ export default async function DashboardPage() {
 
   const { data: allPaymentsForStats } = await supabase
     .from("payments")
-    .select("amount, amount_with_paisa, status, confidence_score, created_at")
+    .select("amount, amount_with_paisa, status, overall_confidence, created_at")
     .eq("merchant_id", merchant.id);
 
   const allPayments = allPaymentsForStats ?? [];
+
+  const getAmount = (p: { amount_with_paisa: number | null; amount: number }) =>
+    Number(p.amount_with_paisa ?? p.amount) || 0;
 
   const todayPayments = allPayments.filter((p) => p.created_at >= todayStart);
   const weekPayments = allPayments.filter((p) => p.created_at >= weekStart);
 
   const todayCount = todayPayments.length;
-  const todaySum = todayPayments.reduce(
-    (sum, p) => sum + Number(p.amount_with_paisa ?? p.amount),
-    0
-  );
+  const todaySum = todayPayments.reduce((sum, p) => sum + getAmount(p), 0);
 
   const weekCount = weekPayments.length;
-  const weekSum = weekPayments.reduce(
-    (sum, p) => sum + Number(p.amount_with_paisa ?? p.amount),
-    0
-  );
+  const weekSum = weekPayments.reduce((sum, p) => sum + getAmount(p), 0);
 
-  const allTimeSum = allPayments.reduce(
-    (sum, p) => sum + Number(p.amount_with_paisa ?? p.amount),
-    0
-  );
+  const allTimeSum = allPayments.reduce((sum, p) => sum + getAmount(p), 0);
 
   const nonPending = allPayments.filter((p) => p.status !== "pending");
   const verified = allPayments.filter((p) => p.status === "verified");
@@ -148,12 +142,12 @@ export default async function DashboardPage() {
       : 0;
 
   const withConfidence = allPayments.filter(
-    (p) => p.confidence_score != null
+    (p) => p.overall_confidence != null
   );
   const avgConfidence =
     withConfidence.length > 0
       ? Math.round(
-          withConfidence.reduce((sum, p) => sum + Number(p.confidence_score), 0) /
+          withConfidence.reduce((sum, p) => sum + Number(p.overall_confidence), 0) /
             withConfidence.length
         )
       : 0;

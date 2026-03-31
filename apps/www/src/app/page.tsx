@@ -97,7 +97,8 @@ export default function Home() {
 
           <p className="text-[17px] text-muted leading-relaxed max-w-lg mx-auto mb-10">
             Generate QR codes. Customers pay with any UPI app.
-            Verify through bank alerts + LLM. No Razorpay. No fees.
+            Verify via Gmail bank alerts + LLM parsing.
+            No Razorpay. No fees. No merchant onboarding.
           </p>
 
           <div className="flex items-center justify-center gap-3 mb-16">
@@ -152,11 +153,12 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           <SectionLabel>How it works</SectionLabel>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">
-            Three API calls. Zero infrastructure.
+            UPI is an open protocol. Verification is the hard part.
           </h2>
           <p className="text-muted text-[15px] mb-6 max-w-lg">
-            No payment gateway signup. No KYC. No webhooks to configure.
-            Just install the package and start accepting payments.
+            Anyone can generate a UPI QR — the spec is public. The real problem is knowing
+            if someone actually paid. upiagent solves that by reading your bank&apos;s email alerts
+            and using an LLM to extract structured payment data.
           </p>
 
           <AnimatedFlow />
@@ -164,18 +166,28 @@ export default function Home() {
           <div className="grid gap-4 mt-6">
             <Step
               num="01"
-              title="Generate a UPI QR"
-              desc="Standard UPI intent URL rendered as a QR code. Works with GPay, PhonePe, Paytm, CRED — every UPI app."
+              title="You generate a QR code"
+              desc="upiagent builds a standard upi://pay intent URL with your UPI ID, amount, and transaction reference. Renders it as a QR code. Works with every UPI app — GPay, PhonePe, Paytm, CRED, all of them."
             />
             <Step
               num="02"
-              title="Customer scans & pays"
-              desc="Payment happens in the customer's UPI app. Your server never touches their banking credentials."
+              title="Customer scans and pays"
+              desc="They open any UPI app, scan the QR, and pay. The money goes directly to your bank account. No intermediary. Your server never touches their credentials."
             />
             <Step
               num="03"
-              title="Verify via LLM"
-              desc="Bank alerts from Gmail, SMS, WhatsApp, or screenshots are ingested and parsed by an LLM. Validated through a 4-layer security pipeline."
+              title="Your bank sends an email"
+              desc="Every Indian bank sends transaction alerts to your Gmail — HDFC, ICICI, SBI, Axis, Kotak, and more. upiagent connects to Gmail via OAuth and watches for these alerts."
+            />
+            <Step
+              num="04"
+              title="LLM extracts the payment data"
+              desc="The bank email is parsed by an LLM (GPT-4o-mini, Gemini, or Claude) using structured output. It extracts the amount, UPI reference ID, sender, timestamp, and confidence score. Zod validates the schema."
+            />
+            <Step
+              num="05"
+              title="4-layer security pipeline verifies it"
+              desc="Format validation catches LLM hallucinations. Amount matching checks to the paisa. Time window blocks replay attacks. Duplicate detection prevents double-crediting. All four must pass."
             />
           </div>
         </div>
@@ -356,79 +368,59 @@ export default function Home() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────── */}
-      <footer className="relative px-6 pt-24 pb-12 border-t border-border overflow-hidden">
-        {/* Giant background wordmark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-          <span
-            className="font-mono font-bold text-[clamp(8rem,22vw,18rem)] tracking-tighter text-transparent"
-            style={{
-              WebkitTextStroke: "1px rgba(255, 255, 255, 0.03)",
-            }}
-          >
-            upiagent
-          </span>
+      <footer className="relative border-t border-border overflow-hidden">
+        {/* Giant wordmark */}
+        <div className="relative px-6 pt-20 pb-6">
+          <div className="max-w-5xl mx-auto">
+            <a
+              href="#"
+              className="block font-mono font-bold text-[clamp(4rem,15vw,11rem)] leading-[0.85] tracking-[-0.06em] text-foreground/[0.04] hover:text-foreground/[0.08] transition-colors duration-700 select-none"
+            >
+              upi
+              <br />
+              agent
+            </a>
+          </div>
         </div>
 
-        <div className="relative max-w-5xl mx-auto">
-          {/* Top row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
-              <div className="font-mono text-sm font-medium text-foreground mb-3 tracking-tight">upiagent</div>
-              <p className="text-[13px] text-muted leading-relaxed">
-                UPI payments without a payment gateway. Open source.
-              </p>
+        {/* Links row — overlaps the wordmark */}
+        <div className="relative px-6 pb-16">
+          <div className="max-w-5xl mx-auto flex flex-wrap gap-x-10 gap-y-6">
+            <div className="flex flex-col gap-2">
+              <span className="font-mono text-[9px] text-muted/30 uppercase tracking-[0.25em]">Product</span>
+              <a href="#how" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">How it works</a>
+              <a href="#demo" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">Live demo</a>
+              <a href="#quickstart" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">Docs</a>
+              <a href="#pricing" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">Pricing</a>
             </div>
-
-            {/* Product */}
-            <div>
-              <div className="font-mono text-[10px] text-muted/40 uppercase tracking-[0.2em] mb-4">Product</div>
-              <div className="flex flex-col gap-2.5">
-                <a href="#how" className="text-[13px] text-muted hover:text-foreground transition-colors">How it works</a>
-                <a href="#demo" className="text-[13px] text-muted hover:text-foreground transition-colors">Live demo</a>
-                <a href="#quickstart" className="text-[13px] text-muted hover:text-foreground transition-colors">Quick start</a>
-                <a href="#pricing" className="text-[13px] text-muted hover:text-foreground transition-colors">Pricing</a>
-              </div>
+            <div className="flex flex-col gap-2">
+              <span className="font-mono text-[9px] text-muted/30 uppercase tracking-[0.25em]">Source</span>
+              <a href="https://github.com/AmarPathak/upiagent" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">GitHub</a>
+              <a href="https://www.npmjs.com/package/upiagent" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">npm</a>
+              <a href="https://github.com/AmarPathak/upiagent/issues" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">Issues</a>
             </div>
-
-            {/* Developers */}
-            <div>
-              <div className="font-mono text-[10px] text-muted/40 uppercase tracking-[0.2em] mb-4">Developers</div>
-              <div className="flex flex-col gap-2.5">
-                <a href="https://github.com/AmarPathak/upiagent" className="text-[13px] text-muted hover:text-foreground transition-colors">GitHub</a>
-                <a href="https://www.npmjs.com/package/upiagent" className="text-[13px] text-muted hover:text-foreground transition-colors">npm</a>
-                <a href="https://github.com/AmarPathak/upiagent/issues" className="text-[13px] text-muted hover:text-foreground transition-colors">Issues</a>
-              </div>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <div className="font-mono text-[10px] text-muted/40 uppercase tracking-[0.2em] mb-4">Legal</div>
-              <div className="flex flex-col gap-2.5">
-                <span className="text-[13px] text-muted">MIT License</span>
-              </div>
+            <div className="flex flex-col gap-2">
+              <span className="font-mono text-[9px] text-muted/30 uppercase tracking-[0.25em]">Connect</span>
+              <a href="https://github.com/AmarPathak" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">GitHub</a>
+              <a href="https://x.com/AmarPathak" className="text-[13px] text-muted/60 hover:text-foreground transition-colors">X / Twitter</a>
             </div>
           </div>
+        </div>
 
-          {/* Divider */}
-          <div className="h-px bg-border mb-8" />
-
-          {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="font-mono text-[11px] text-muted/40">
-              Built by{" "}
-              <a href="https://github.com/AmarPathak" className="text-muted/60 hover:text-foreground transition-colors">
-                Amar Pathak
-              </a>
+        {/* Bottom bar */}
+        <div className="relative px-6 py-5 border-t border-border">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <span className="font-mono text-[10px] text-muted/25">
+              MIT &middot; {new Date().getFullYear()}
             </span>
             <div className="flex items-center gap-4">
-              <a href="https://github.com/AmarPathak/upiagent" className="text-muted/40 hover:text-foreground transition-colors">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <a href="https://github.com/AmarPathak/upiagent" className="text-muted/25 hover:text-foreground transition-colors">
+                <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                 </svg>
               </a>
-              <a href="https://x.com/AmarPathak" className="text-muted/40 hover:text-foreground transition-colors">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <a href="https://x.com/AmarPathak" className="text-muted/25 hover:text-foreground transition-colors">
+                <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>

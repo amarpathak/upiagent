@@ -3,15 +3,15 @@
 import { useEffect, useState, useRef } from "react";
 
 const nodes = [
-  { id: "qr", label: "Generate QR", icon: "grid" },
-  { id: "pay", label: "Customer pays", icon: "phone" },
-  { id: "source", label: "Alert ingested", icon: "layers" },
-  { id: "llm", label: "LLM parses", icon: "cpu" },
-  { id: "verify", label: "Verified", icon: "check" },
+  { id: "qr", label: "Generate QR", sub: "upi://pay intent", icon: "grid" },
+  { id: "pay", label: "Customer pays", sub: "any UPI app", icon: "phone" },
+  { id: "gmail", label: "Email arrives", sub: "bank alert", icon: "mail" },
+  { id: "llm", label: "LLM parses", sub: "structured output", icon: "cpu" },
+  { id: "verify", label: "Verified", sub: "4-layer pipeline", icon: "shield" },
 ];
 
 function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
-  const cls = `w-5 h-5 transition-colors duration-500 ${active ? "stroke-accent" : "stroke-muted/40"}`;
+  const cls = `w-5 h-5 transition-colors duration-500 ${active ? "stroke-accent" : "stroke-muted/30"}`;
   switch (icon) {
     case "grid":
       return (
@@ -29,12 +29,11 @@ function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
           <circle cx="12" cy="18" r="1" />
         </svg>
       );
-    case "layers":
+    case "mail":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="M22 4L12 13L2 4" />
         </svg>
       );
     case "cpu":
@@ -48,11 +47,11 @@ function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
           <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="15" x2="4" y2="15" />
         </svg>
       );
-    case "check":
+    case "shield":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-          <path d="M22 4L12 14.01l-3-3" />
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <path d="M9 12l2 2 4-4" />
         </svg>
       );
     default:
@@ -68,7 +67,6 @@ export function AnimatedFlow() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
@@ -86,22 +84,22 @@ export function AnimatedFlow() {
     if (activeIndex < 0 || activeIndex >= nodes.length) return;
     const timer = setTimeout(() => {
       setActiveIndex((i) => (i + 1 >= nodes.length ? 0 : i + 1));
-    }, 1800);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [activeIndex]);
 
   return (
     <div ref={ref} className="w-full py-10 overflow-x-auto">
-      <div className="flex items-center justify-between min-w-[540px] max-w-2xl mx-auto relative px-4">
+      <div className="flex items-start justify-between min-w-[600px] max-w-2xl mx-auto relative px-2">
         {/* Base line */}
-        <div className="absolute top-6 left-[10%] right-[10%] h-px bg-border" />
+        <div className="absolute top-6 left-[8%] right-[8%] h-px bg-border" />
         {/* Active line */}
         <div
-          className="absolute top-6 left-[10%] h-px transition-all duration-700 ease-out"
+          className="absolute top-6 left-[8%] h-px transition-all duration-700 ease-out"
           style={{
-            width: `${Math.max(0, (activeIndex / (nodes.length - 1)) * 80)}%`,
+            width: `${Math.max(0, (activeIndex / (nodes.length - 1)) * 84)}%`,
             background: "linear-gradient(90deg, var(--accent), var(--cyan))",
-            boxShadow: "0 0 8px var(--glow)",
+            boxShadow: "0 0 12px var(--glow)",
           }}
         />
 
@@ -109,11 +107,11 @@ export function AnimatedFlow() {
           const isActive = i <= activeIndex;
           const isCurrent = i === activeIndex;
           return (
-            <div key={node.id} className="relative z-10 flex flex-col items-center gap-2.5 w-24">
+            <div key={node.id} className="relative z-10 flex flex-col items-center w-[100px]">
               {isCurrent && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2">
                   <div
-                    className="w-12 h-12 rounded-xl border border-accent/40"
+                    className="w-12 h-12 rounded-xl border border-accent/30"
                     style={{ animation: "pulse-ring 2s ease-out infinite" }}
                   />
                 </div>
@@ -121,18 +119,25 @@ export function AnimatedFlow() {
               <div
                 className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-all duration-500 ${
                   isActive
-                    ? "border-accent/40 bg-accent/[0.08]"
+                    ? "border-accent/30 bg-accent/[0.06]"
                     : "border-border bg-surface"
                 }`}
               >
                 <NodeIcon icon={node.icon} active={isActive} />
               </div>
               <span
-                className={`text-[10px] font-mono text-center leading-tight transition-colors duration-500 ${
-                  isActive ? "text-foreground/70" : "text-muted/30"
+                className={`text-[11px] font-mono text-center leading-tight mt-2.5 transition-colors duration-500 ${
+                  isActive ? "text-foreground/80" : "text-muted/25"
                 }`}
               >
                 {node.label}
+              </span>
+              <span
+                className={`text-[9px] font-mono text-center leading-tight mt-0.5 transition-colors duration-500 ${
+                  isActive ? "text-muted/50" : "text-muted/15"
+                }`}
+              >
+                {node.sub}
               </span>
             </div>
           );
