@@ -105,12 +105,35 @@ export async function POST(req: Request) {
     });
   }
 
-  // Decrypt credentials if encrypted
+  // Decrypt credentials with strict encryption checks
   const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-  const clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
+
+  const secretEncrypted = isEncrypted(merchant.gmail_client_secret);
+  const tokenEncrypted = isEncrypted(merchant.gmail_refresh_token);
+
+  // FAIL HARD: encrypted credentials but no key to decrypt them
+  if (!encKey && (secretEncrypted || tokenEncrypted)) {
+    console.error("[verify] Server misconfiguration: encrypted credentials found but CREDENTIALS_ENCRYPTION_KEY is not set");
+    return NextResponse.json(
+      { error: "Server misconfiguration: encryption key not set" },
+      { status: 500 },
+    );
+  }
+
+  // Backward compat: plaintext credentials with key set (migration period)
+  if (encKey && (!secretEncrypted || !tokenEncrypted)) {
+    console.warn("[verify] WARNING: plaintext credentials detected with encryption key set — credentials should be re-encrypted via Settings");
+  }
+
+  // Dev/testing: plaintext credentials without key
+  if (!encKey && !secretEncrypted && !tokenEncrypted) {
+    console.warn("[verify] WARNING: running with plaintext credentials and no encryption key (dev/testing mode)");
+  }
+
+  const clientSecret = encKey && secretEncrypted
     ? decrypt(merchant.gmail_client_secret, encKey)
     : merchant.gmail_client_secret;
-  const refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+  const refreshToken = encKey && tokenEncrypted
     ? decrypt(merchant.gmail_refresh_token, encKey)
     : merchant.gmail_refresh_token;
 
@@ -156,7 +179,15 @@ export async function POST(req: Request) {
       const subject = headers.find((h: { name?: string | null }) => h.name?.toLowerCase() === "subject")?.value ?? "";
 
       // Parse with Gemini
-      const rawLlmKey = merchant.llm_api_key && encKey && isEncrypted(merchant.llm_api_key)
+      const llmKeyEncrypted = merchant.llm_api_key && isEncrypted(merchant.llm_api_key);
+      if (!encKey && llmKeyEncrypted) {
+        console.error("[verify] Server misconfiguration: encrypted llm_api_key but CREDENTIALS_ENCRYPTION_KEY is not set");
+        return NextResponse.json(
+          { error: "Server misconfiguration: encryption key not set" },
+          { status: 500 },
+        );
+      }
+      const rawLlmKey = encKey && llmKeyEncrypted
         ? decrypt(merchant.llm_api_key, encKey)
         : merchant.llm_api_key;
       const geminiApiKey = rawLlmKey || GEMINI_API_KEY;

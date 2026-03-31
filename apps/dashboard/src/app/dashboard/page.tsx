@@ -206,14 +206,14 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardDescription>Verification Rate</CardDescription>
+            <CardDescription>Detection Rate</CardDescription>
             <CardTitle className="text-2xl font-mono">
               {successRate}%
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {verified.length} verified of {nonPending.length} resolved
+              {verified.length} detected of {nonPending.length} resolved
             </p>
           </CardContent>
         </Card>
@@ -269,7 +269,7 @@ export default async function DashboardPage() {
                       variant={statusVariant(payment.status)}
                       className={statusColor(payment.status)}
                     >
-                      {payment.status}
+                      {payment.status === "verified" ? "detected" : payment.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono font-medium">

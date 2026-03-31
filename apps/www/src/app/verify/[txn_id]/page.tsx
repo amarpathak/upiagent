@@ -81,7 +81,7 @@ export default async function VerifyPage({
     { label: string; color: string; bg: string }
   > = {
     verified: {
-      label: "Verified",
+      label: "Payment Detected",
       color: "text-emerald-400",
       bg: "bg-emerald-400/10 border-emerald-400/20",
     },
@@ -206,7 +206,7 @@ export default async function VerifyPage({
                 )}
                 {payment.verified_at && (
                   <DetailRow
-                    label="Verified At"
+                    label="Detected At"
                     value={new Date(payment.verified_at).toLocaleString(
                       "en-IN",
                       {
@@ -247,7 +247,7 @@ export default async function VerifyPage({
 
         {/* Footer */}
         <p className="text-center text-[11px] text-muted/50 font-mono mt-6">
-          Verified by upiagent
+          Detected by upiagent
         </p>
       </div>
     </main>

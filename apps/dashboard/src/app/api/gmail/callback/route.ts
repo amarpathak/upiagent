@@ -73,18 +73,24 @@ export async function GET(request: Request) {
     // Non-critical — we'll just not show the email
   }
 
+  // Encryption is mandatory — refuse to store plaintext credentials
+  const encryptionKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    console.error("[gmail/callback] CREDENTIALS_ENCRYPTION_KEY is not set — refusing to store plaintext credentials");
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3002"}/dashboard/settings?gmail=error&message=${encodeURIComponent("encryption_key_not_configured")}`,
+    );
+  }
+
   // Save to merchant record using service role (bypasses RLS)
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // Encrypt sensitive credentials before storing
-  const encryptionKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-  const refreshToken = encryptionKey
-    ? encrypt(tokens.refresh_token, encryptionKey)
-    : tokens.refresh_token;
-  const clientSecret = encryptionKey && process.env.GOOGLE_CLIENT_SECRET
+  // Always encrypt before storing
+  const refreshToken = encrypt(tokens.refresh_token, encryptionKey);
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
     ? encrypt(process.env.GOOGLE_CLIENT_SECRET, encryptionKey)
     : process.env.GOOGLE_CLIENT_SECRET;
 

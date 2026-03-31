@@ -28,7 +28,7 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
 
       if (data.verified || data.status === "verified") {
         if (timer.current) clearInterval(timer.current);
-        setMessage("Payment verified!");
+        setMessage("Payment detected and matched!");
         router.refresh();
         return true;
       }

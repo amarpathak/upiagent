@@ -42,6 +42,16 @@ function relativeTime(dateString: string): string {
   return `${months}mo ago`;
 }
 
+function statusLabel(status: string): string {
+  switch (status) {
+    case "verified": return "detected";
+    case "pending": return "pending";
+    case "failed": return "failed";
+    case "expired": return "expired";
+    default: return status;
+  }
+}
+
 function statusVariant(status: string) {
   switch (status) {
     case "verified":
@@ -139,7 +149,7 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
                   variant={statusVariant(payment.status)}
                   className={statusColor(payment.status)}
                 >
-                  {payment.status}
+                  {statusLabel(payment.status)}
                 </Badge>
               </TableCell>
               <TableCell className="font-mono font-medium">

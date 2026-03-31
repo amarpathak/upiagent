@@ -134,7 +134,7 @@ export default async function PaymentDetailPage({
               variant={statusVariant(payment.status)}
               className={`${statusColor(payment.status)} text-sm px-3 py-1`}
             >
-              {payment.status}
+              {payment.status === "verified" ? "detected" : payment.status}
             </Badge>
           </div>
           <p className="text-3xl font-mono font-bold">

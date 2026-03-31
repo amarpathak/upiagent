@@ -260,7 +260,7 @@ export function LiveDemo() {
     { text: `↳ llm      ₹${p.amount} ref:${p.upiReferenceId} from:${p.senderName}`, type: "dim" },
     { text: `↳ security [format ✓] [amount ✓] [time ✓] [dedup ✓]`, type: "dim" },
     { text: "", type: "dim" },
-    { text: `✓ verified  ₹${p.amount}  confidence: ${p.confidence}`, type: "success" },
+    { text: `✓ payment detected  ₹${p.amount}  confidence: ${p.confidence}`, type: "success" },
   ] : [];
 
   const timeLeft = MAX_WAIT_SECONDS - waitSeconds;
