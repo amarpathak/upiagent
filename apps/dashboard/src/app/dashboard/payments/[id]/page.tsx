@@ -197,11 +197,9 @@ export default async function PaymentDetailPage({
                     <p className="font-semibold text-foreground">
                       {merchant?.display_name || merchant?.name}
                     </p>
-                    {merchant?.upi_account_holder && (
-                      <p className="text-xs text-muted-foreground">
-                        UPI account: {merchant.upi_account_holder}
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {merchant?.description || "Payment"}
+                    </p>
                   </div>
                   <div className="text-xl font-mono font-bold">
                     ₹{Number(payment.amount_with_paisa ?? payment.amount).toFixed(2)}
@@ -209,6 +207,17 @@ export default async function PaymentDetailPage({
                   {payment.note && (
                     <p className="text-xs text-muted-foreground">{payment.note}</p>
                   )}
+
+                  {/* UPI name heads-up */}
+                  {merchant?.upi_account_holder && (
+                    <div className="p-2.5 rounded-md bg-yellow-500/5 border border-yellow-500/20">
+                      <p className="text-[11px] text-yellow-500/90 leading-relaxed">
+                        Your UPI app will show <span className="font-semibold">&quot;{merchant.upi_account_holder}&quot;</span> as the recipient.
+                        This is the bank account holder for <span className="font-medium">{merchant?.display_name || merchant?.name}</span>.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="pt-2 border-t border-border space-y-1">
                     <p className="text-[11px] text-muted-foreground">
                       Paying to: <span className="font-mono">{merchant?.upi_id}</span>
@@ -216,6 +225,11 @@ export default async function PaymentDetailPage({
                     {merchant?.contact_email && (
                       <p className="text-[11px] text-muted-foreground">
                         Contact: {merchant.contact_email}
+                      </p>
+                    )}
+                    {merchant?.website_url && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Website: <a href={merchant.website_url} className="underline" target="_blank" rel="noopener">{merchant.website_url.replace(/^https?:\/\//, "")}</a>
                       </p>
                     )}
                   </div>
