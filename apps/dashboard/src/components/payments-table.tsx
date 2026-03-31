@@ -17,6 +17,7 @@ interface Payment {
   id: string;
   status: string;
   amount: number;
+  amount_with_paisa: number | null;
   transaction_id: string;
   sender_name: string | null;
   verification_source: string | null;
@@ -142,7 +143,7 @@ export function PaymentsTable({ payments }: { payments: Payment[] }) {
                 </Badge>
               </TableCell>
               <TableCell className="font-mono font-medium">
-                {formatAmount(payment.amount)}
+                {formatAmount(payment.amount_with_paisa ?? payment.amount)}
               </TableCell>
               <TableCell className="font-mono text-muted-foreground">
                 {payment.transaction_id

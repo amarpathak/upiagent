@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { PaymentPoller } from "@/components/payment-poller";
 import {
   Card,
   CardContent,
@@ -124,6 +125,8 @@ export default async function PaymentDetailPage({
         &larr; Back to payments
       </Link>
 
+      <PaymentPoller paymentId={payment.id} status={payment.status} />
+
       <div className="flex items-start gap-4">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
@@ -136,7 +139,7 @@ export default async function PaymentDetailPage({
           </div>
           <p className="text-3xl font-mono font-bold">
             ₹
-            {Number(payment.amount).toLocaleString("en-IN", {
+            {Number(payment.amount_with_paisa ?? payment.amount).toLocaleString("en-IN", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}

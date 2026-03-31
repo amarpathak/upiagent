@@ -1,42 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const nodes = [
-  { id: "qr", label: "QR Code", x: 0, icon: "grid" },
-  { id: "scan", label: "UPI App", x: 1, icon: "phone" },
-  { id: "source", label: "Alert Source", x: 2, icon: "layers" },
-  { id: "llm", label: "LLM Parse", x: 3, icon: "cpu" },
-  { id: "verify", label: "Verified", x: 4, icon: "check" },
+  { id: "qr", label: "Generate QR", icon: "grid" },
+  { id: "pay", label: "Customer pays", icon: "phone" },
+  { id: "source", label: "Alert ingested", icon: "layers" },
+  { id: "llm", label: "LLM parses", icon: "cpu" },
+  { id: "verify", label: "Verified", icon: "check" },
 ];
 
-function NodeIcon({ icon }: { icon: string }) {
-  const cls = "w-5 h-5 stroke-current";
+function NodeIcon({ icon, active }: { icon: string; active: boolean }) {
+  const cls = `w-5 h-5 transition-colors duration-500 ${active ? "stroke-accent" : "stroke-muted/40"}`;
   switch (icon) {
     case "grid":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round">
-          <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
         </svg>
       );
     case "phone":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round">
-          <rect x="5" y="2" width="14" height="20" rx="2" /><line x1="12" y1="18" x2="12" y2="18" strokeWidth="2" />
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <circle cx="12" cy="18" r="1" />
         </svg>
       );
     case "layers":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
         </svg>
       );
     case "cpu":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round">
           <rect x="4" y="4" width="16" height="16" rx="2" />
-          <rect x="9" y="9" width="6" height="6" />
+          <rect x="9" y="9" width="6" height="6" rx="1" />
           <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
           <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
           <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="15" x2="23" y2="15" />
@@ -45,8 +50,9 @@ function NodeIcon({ icon }: { icon: string }) {
       );
     case "check":
       return (
-        <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" /><path d="M8 12l3 3 5-5" />
+        <svg className={cls} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+          <path d="M22 4L12 14.01l-3-3" />
         </svg>
       );
     default:
@@ -55,35 +61,59 @@ function NodeIcon({ icon }: { icon: string }) {
 }
 
 export function AnimatedFlow() {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const ref = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveIndex((i) => (i + 1) % nodes.length);
-    }, 2000);
-    return () => clearInterval(timer);
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          setActiveIndex(0);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (activeIndex < 0 || activeIndex >= nodes.length) return;
+    const timer = setTimeout(() => {
+      setActiveIndex((i) => (i + 1 >= nodes.length ? 0 : i + 1));
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [activeIndex]);
+
   return (
-    <div className="w-full py-12">
-      <div className="flex items-center justify-between max-w-2xl mx-auto relative">
-        {/* Connection line */}
-        <div className="absolute top-1/2 left-[10%] right-[10%] h-px bg-border -translate-y-1/2" />
+    <div ref={ref} className="w-full py-10 overflow-x-auto">
+      <div className="flex items-center justify-between min-w-[540px] max-w-2xl mx-auto relative px-4">
+        {/* Base line */}
+        <div className="absolute top-6 left-[10%] right-[10%] h-px bg-border" />
+        {/* Active line */}
         <div
-          className="absolute top-1/2 left-[10%] h-px bg-accent/60 -translate-y-1/2 transition-all duration-700 ease-out"
-          style={{ width: `${(activeIndex / (nodes.length - 1)) * 80}%` }}
+          className="absolute top-6 left-[10%] h-px transition-all duration-700 ease-out"
+          style={{
+            width: `${Math.max(0, (activeIndex / (nodes.length - 1)) * 80)}%`,
+            background: "linear-gradient(90deg, var(--accent), var(--cyan))",
+            boxShadow: "0 0 8px var(--glow)",
+          }}
         />
 
         {nodes.map((node, i) => {
           const isActive = i <= activeIndex;
           const isCurrent = i === activeIndex;
           return (
-            <div key={node.id} className="relative z-10 flex flex-col items-center gap-2">
-              {/* Pulse ring */}
+            <div key={node.id} className="relative z-10 flex flex-col items-center gap-2.5 w-24">
               {isCurrent && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2">
                   <div
-                    className="w-12 h-12 rounded-xl border border-accent/30"
+                    className="w-12 h-12 rounded-xl border border-accent/40"
                     style={{ animation: "pulse-ring 2s ease-out infinite" }}
                   />
                 </div>
@@ -91,15 +121,15 @@ export function AnimatedFlow() {
               <div
                 className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-all duration-500 ${
                   isActive
-                    ? "border-accent/50 bg-accent/10 text-accent"
-                    : "border-border bg-surface text-muted/40"
+                    ? "border-accent/40 bg-accent/[0.08]"
+                    : "border-border bg-surface"
                 }`}
               >
-                <NodeIcon icon={node.icon} />
+                <NodeIcon icon={node.icon} active={isActive} />
               </div>
               <span
-                className={`text-[11px] font-mono transition-colors duration-500 ${
-                  isActive ? "text-foreground/80" : "text-muted/30"
+                className={`text-[10px] font-mono text-center leading-tight transition-colors duration-500 ${
+                  isActive ? "text-foreground/70" : "text-muted/30"
                 }`}
               >
                 {node.label}

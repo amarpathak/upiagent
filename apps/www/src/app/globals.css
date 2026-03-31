@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --muted: #71717a;
-  --border: #27272a;
-  --accent: #3b82f6;
-  --accent-dim: #2563eb;
-  --cyan: #22d3ee;
-  --surface: #0c0c0e;
-  --surface-raised: #131316;
+  --background: #050508;
+  --foreground: #e8e8ed;
+  --muted: #6e6e80;
+  --border: #1e1e2e;
+  --accent: #5b8def;
+  --accent-dim: #4a7ae0;
+  --cyan: #5ce5d5;
+  --surface: #0a0a10;
+  --surface-raised: #111118;
+  --glow: rgba(91, 141, 239, 0.08);
 }
 
 @theme inline {
@@ -22,6 +23,7 @@
   --color-cyan: var(--cyan);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-glow: var(--glow);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -32,77 +34,64 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--background);
+}
+
 /* Terminal cursor blink */
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
-
 .cursor-blink {
   animation: blink 1s step-end infinite;
 }
 
-/* Smooth reveal for terminal lines */
+/* Smooth reveal */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 .animate-line {
   animation: fadeInUp 0.3s ease-out both;
 }
 
-/* Grid beam animation */
-@keyframes grid-beam {
-  0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(100vh); opacity: 0; }
+/* Stagger children */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Pulse ring */
+/* Pulse ring for flow nodes */
 @keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { opacity: 0.15; }
-  100% { transform: scale(2.5); opacity: 0; }
+  0% { transform: scale(0.85); opacity: 0; }
+  50% { opacity: 0.2; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* Floating particles */
-@keyframes float {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  25% { transform: translateY(-20px) translateX(10px); }
-  50% { transform: translateY(-10px) translateX(-5px); }
-  75% { transform: translateY(-25px) translateX(8px); }
+/* Beam — vertical light streak */
+@keyframes beam {
+  0% { transform: translateY(-200%); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(200%); opacity: 0; }
 }
 
-/* Subtle gradient shift */
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* Gradient border shimmer */
+@keyframes shimmer {
+  0% { background-position: 200% 50%; }
+  100% { background-position: -200% 50%; }
 }
 
-/* Scan line */
-@keyframes scan {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
+/* Orbit */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(var(--radius)) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
 }
 
 /* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }

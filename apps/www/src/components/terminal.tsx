@@ -1,53 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const lines: { text: string; type: "cmd" | "output" | "success" | "dim" | "comment" }[] = [
-  { text: "// create payment — generates UPI QR intent", type: "comment" },
-  { text: "$ const payment = await agent.createPayment({ amount: 499 })", type: "cmd" },
-  { text: "  QR generated  TXN_m4x7k2", type: "dim" },
+  { text: "const payment = await agent.createPayment({ amount: 499 })", type: "cmd" },
+  { text: "  QR generated  txn_m4x7k2", type: "dim" },
   { text: "", type: "dim" },
-  { text: "  waiting for payment...", type: "dim" },
+  { text: "  waiting for customer...", type: "dim" },
   { text: "", type: "dim" },
-  { text: "// verify — reads Gmail, parses with LLM", type: "comment" },
-  { text: "$ const result = await agent.verifyPayment({ expectedAmount: 499 })", type: "cmd" },
-  { text: "  gmail    3 alerts fetched", type: "dim" },
-  { text: "  llm      parsed: 499.00 from john@ybl ref:412345678901", type: "dim" },
-  { text: "  security [format ok] [amount ok] [time ok] [dedup ok]", type: "dim" },
+  { text: "const result = await agent.verifyPayment({ amount: 499 })", type: "cmd" },
+  { text: "  gmail     3 alerts fetched", type: "dim" },
+  { text: "  llm       parsed: 499.00 ref:412345678901", type: "dim" },
+  { text: "  security  format ok  amount ok  time ok  dedup ok", type: "dim" },
   { text: "", type: "dim" },
-  { text: "  payment verified  confidence: 0.95", type: "success" },
+  { text: "  verified  confidence: 0.95", type: "success" },
 ];
 
 export function Terminal() {
   const [visibleLines, setVisibleLines] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
 
   useEffect(() => {
-    if (visibleLines >= lines.length) return;
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          setVisibleLines(1);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
+  useEffect(() => {
+    if (visibleLines === 0 || visibleLines >= lines.length) return;
     const line = lines[visibleLines];
-    const delay = line?.type === "cmd" ? 600 : line?.text === "" ? 200 : 300;
-
-    const timer = setTimeout(() => {
-      setVisibleLines((v) => v + 1);
-    }, delay);
-
+    const delay = line?.type === "cmd" ? 700 : line?.text === "" ? 250 : 350;
+    const timer = setTimeout(() => setVisibleLines((v) => v + 1), delay);
     return () => clearTimeout(timer);
   }, [visibleLines]);
 
   return (
-    <div className="rounded-lg border border-border bg-surface overflow-hidden">
+    <div ref={ref} className="rounded-xl border border-border bg-surface overflow-hidden">
       {/* Title bar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-surface-raised">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface-raised/50">
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+          <div className="w-[10px] h-[10px] rounded-full bg-[#ff5f57]/80" />
+          <div className="w-[10px] h-[10px] rounded-full bg-[#febc2e]/80" />
+          <div className="w-[10px] h-[10px] rounded-full bg-[#28c840]/80" />
         </div>
-        <span className="text-xs text-muted font-mono ml-2">payment-flow.ts</span>
+        <span className="text-[11px] text-muted/60 font-mono ml-3">payment-flow.ts</span>
       </div>
 
-      {/* Terminal content */}
-      <div className="p-4 font-mono text-[13px] leading-6 min-h-[300px]">
+      {/* Content */}
+      <div className="p-5 font-mono text-[13px] leading-7 min-h-[280px]">
         {lines.slice(0, visibleLines).map((line, i) => (
           <div
             key={i}
@@ -60,12 +71,10 @@ export function Terminal() {
               <span
                 className={
                   line.type === "cmd"
-                    ? "text-foreground"
+                    ? "text-foreground/90"
                     : line.type === "success"
-                      ? "text-cyan font-medium"
-                      : line.type === "comment"
-                        ? "text-muted/40 italic"
-                        : "text-muted"
+                      ? "text-cyan"
+                      : "text-muted/60"
                 }
               >
                 {line.text}
@@ -74,8 +83,8 @@ export function Terminal() {
           </div>
         ))}
 
-        {visibleLines < lines.length && (
-          <span className="cursor-blink text-accent">_</span>
+        {visibleLines > 0 && visibleLines < lines.length && (
+          <span className="cursor-blink text-accent/70 text-sm">_</span>
         )}
       </div>
     </div>
