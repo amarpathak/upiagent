@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
+import { decrypt, isEncrypted } from "@upiagent/core";
 
 // Use service role to bypass RLS — this is a backend verification worker
 const supabase = createClient(
@@ -104,12 +105,21 @@ export async function POST(req: Request) {
     });
   }
 
+  // Decrypt credentials if encrypted
+  const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+  const clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
+    ? decrypt(merchant.gmail_client_secret, encKey)
+    : merchant.gmail_client_secret;
+  const refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+    ? decrypt(merchant.gmail_refresh_token, encKey)
+    : merchant.gmail_refresh_token;
+
   // Set up Gmail client
   const oauth2Client = new google.auth.OAuth2(
     merchant.gmail_client_id,
-    merchant.gmail_client_secret,
+    clientSecret,
   );
-  oauth2Client.setCredentials({ refresh_token: merchant.gmail_refresh_token });
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
   // Search for recent bank alerts — wider window for manual retries
@@ -146,7 +156,10 @@ export async function POST(req: Request) {
       const subject = headers.find((h: { name?: string | null }) => h.name?.toLowerCase() === "subject")?.value ?? "";
 
       // Parse with Gemini
-      const geminiApiKey = merchant.llm_api_key || GEMINI_API_KEY;
+      const rawLlmKey = merchant.llm_api_key && encKey && isEncrypted(merchant.llm_api_key)
+        ? decrypt(merchant.llm_api_key, encKey)
+        : merchant.llm_api_key;
+      const geminiApiKey = rawLlmKey || GEMINI_API_KEY;
       if (!geminiApiKey) {
         return NextResponse.json({ verified: false, status: "pending", message: "No LLM API key configured" });
       }

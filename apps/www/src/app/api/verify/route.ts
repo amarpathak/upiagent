@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
+import { decrypt, isEncrypted } from "@upiagent/core";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,6 +10,32 @@ const supabase = createClient(
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
+// ── Rate limiter (mitigation #4) ──────────────────────────
+// 10 requests per IP per minute
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 60_000;
+const hits = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = hits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    hits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT;
+}
+
+// Cleanup stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of hits) {
+    if (now > entry.resetAt) hits.delete(ip);
+  }
+}, 300_000);
+
+// ── Helpers ───────────────────────────────────────────────
 function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, "\n")
@@ -62,17 +89,23 @@ function extractBody(payload: Payload): string {
  * POST /api/verify
  * Body: { expectedAmount: number, lookbackMinutes?: number }
  *
- * Demo verification — uses the first merchant's Gmail credentials from Supabase.
- * For the landing page live demo only.
+ * Demo verification — uses the first merchant's Gmail credentials.
+ * Rate-limited. Credentials decrypted at runtime.
  */
 export async function POST(req: Request) {
-  const { expectedAmount, lookbackMinutes = 5 } = await req.json();
-
-  if (!expectedAmount) {
-    return NextResponse.json({ error: "expectedAmount required" }, { status: 400 });
+  // Rate limit by IP
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: "Rate limited. Try again in a minute." }, { status: 429 });
   }
 
-  // Get the demo merchant (first merchant with gmail connected)
+  const { expectedAmount, lookbackMinutes = 5 } = await req.json();
+
+  if (!expectedAmount || expectedAmount > 3) {
+    return NextResponse.json({ error: "Demo: amount must be ₹1–3" }, { status: 400 });
+  }
+
+  // Get demo merchant
   const { data: merchant } = await supabase
     .from("merchants")
     .select("*")
@@ -80,22 +113,27 @@ export async function POST(req: Request) {
     .limit(1)
     .single();
 
-  if (!merchant?.gmail_refresh_token || !merchant?.gmail_client_id || !merchant?.gmail_client_secret) {
-    return NextResponse.json({
-      verified: false,
-      message: "Demo merchant Gmail not connected",
-    });
+  if (!merchant?.gmail_refresh_token) {
+    return NextResponse.json({ verified: false, message: "Demo merchant not configured" });
   }
+
+  // Decrypt credentials (mitigation #2)
+  const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+  const clientSecret = encKey && merchant.gmail_client_secret && isEncrypted(merchant.gmail_client_secret)
+    ? decrypt(merchant.gmail_client_secret, encKey)
+    : merchant.gmail_client_secret;
+  const refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+    ? decrypt(merchant.gmail_refresh_token, encKey)
+    : merchant.gmail_refresh_token;
 
   // Set up Gmail client
   const oauth2Client = new google.auth.OAuth2(
     merchant.gmail_client_id,
-    merchant.gmail_client_secret,
+    clientSecret,
   );
-  oauth2Client.setCredentials({ refresh_token: merchant.gmail_refresh_token });
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-  // Search for recent bank alerts
   const afterTimestamp = Math.floor((Date.now() - lookbackMinutes * 60 * 1000) / 1000);
   const query = `from:alerts@hdfcbank.bank.in after:${afterTimestamp}`;
 
@@ -107,7 +145,6 @@ export async function POST(req: Request) {
     });
 
     const messageIds = listRes.data.messages ?? [];
-
     if (messageIds.length === 0) {
       return NextResponse.json({ verified: false, message: "No bank alerts found yet" });
     }
@@ -125,8 +162,10 @@ export async function POST(req: Request) {
       const headers = payload.headers ?? [];
       const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value ?? "";
 
-      // Parse with Gemini
-      const geminiApiKey = merchant.llm_api_key || GEMINI_API_KEY;
+      const rawLlmKey = merchant.llm_api_key && encKey && isEncrypted(merchant.llm_api_key)
+        ? decrypt(merchant.llm_api_key, encKey)
+        : merchant.llm_api_key;
+      const geminiApiKey = rawLlmKey || GEMINI_API_KEY;
       if (!geminiApiKey) {
         return NextResponse.json({ verified: false, message: "No LLM API key configured" });
       }
@@ -166,7 +205,6 @@ If NOT a credit/received payment, set isCredit to false.`,
 
       if (!parsed.isCredit) continue;
 
-      // Amount match
       if (Math.abs(parsed.amount - expectedAmount) <= 0.01) {
         return NextResponse.json({
           verified: true,

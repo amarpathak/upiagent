@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { encrypt } from "@upiagent/core";
 
 /**
  * GET /api/gmail/callback?code=xxx
@@ -78,12 +79,21 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
+  // Encrypt sensitive credentials before storing
+  const encryptionKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+  const refreshToken = encryptionKey
+    ? encrypt(tokens.refresh_token, encryptionKey)
+    : tokens.refresh_token;
+  const clientSecret = encryptionKey && process.env.GOOGLE_CLIENT_SECRET
+    ? encrypt(process.env.GOOGLE_CLIENT_SECRET, encryptionKey)
+    : process.env.GOOGLE_CLIENT_SECRET;
+
   const { error: updateError } = await supabaseAdmin
     .from("merchants")
     .update({
       gmail_client_id: process.env.GOOGLE_CLIENT_ID,
-      gmail_client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      gmail_refresh_token: tokens.refresh_token,
+      gmail_client_secret: clientSecret,
+      gmail_refresh_token: refreshToken,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", user.id);

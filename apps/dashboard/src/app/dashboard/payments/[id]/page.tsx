@@ -84,7 +84,7 @@ export default async function PaymentDetailPage({
 
   const { data: merchant } = await supabase
     .from("merchants")
-    .select("id, name, display_name, upi_id, upi_account_holder, contact_email")
+    .select("id, name, display_name, upi_id, upi_account_holder, contact_email, website_url, description")
     .eq("user_id", user.id)
     .single();
 

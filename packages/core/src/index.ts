@@ -66,3 +66,6 @@ export {
 
 // Setup — Gmail OAuth flow helper
 export { setupGmailAuth, type GmailAuthResult, type GmailAuthSetupOptions } from "./setup/index.js";
+
+// Crypto — encrypt/decrypt sensitive credentials
+export { encrypt, decrypt, isEncrypted, generateKey } from "./utils/crypto.js";
