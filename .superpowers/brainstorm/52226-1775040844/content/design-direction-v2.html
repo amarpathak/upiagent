@@ -1,0 +1,115 @@
+<h2>Design direction — take 2</h2>
+<p class="subtitle">Less template, more personality. Which energy is yours?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #000; padding: 0; min-height: 380px; overflow: hidden; position: relative; font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;">
+      <!-- Direction A: The Receipt -->
+      <div style="padding: 48px 32px; position: relative;">
+        <!-- Faint grid like a receipt paper -->
+        <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(255,255,255,0.02) 31px, rgba(255,255,255,0.02) 32px); pointer-events: none;"></div>
+
+        <div style="font-size: 10px; color: #444; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 32px;">Transaction receipt</div>
+
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+          <span style="color: #666; font-size: 12px;">Razorpay fee</span>
+          <span style="color: #ff4444; font-size: 14px; text-decoration: line-through;">- ₹2,000</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+          <span style="color: #666; font-size: 12px;">PayU fee</span>
+          <span style="color: #ff4444; font-size: 14px; text-decoration: line-through;">- ₹1,800</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+          <span style="color: #666; font-size: 12px;">Cashfree fee</span>
+          <span style="color: #ff4444; font-size: 14px; text-decoration: line-through;">- ₹1,500</span>
+        </div>
+
+        <div style="border-top: 1px dashed #222; margin: 20px 0;"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px;">
+          <span style="color: #fff; font-size: 13px; font-weight: 600;">upiagent fee</span>
+          <span style="color: #5ce5d5; font-size: 20px; font-weight: 700;">₹0</span>
+        </div>
+
+        <div style="border-top: 1px dashed #222; margin: 0 0 24px;"></div>
+
+        <div style="color: #333; font-size: 11px; line-height: 1.8;">
+          open source · ai-verified · your bank account<br>
+          no middleman · no onboarding · no permission
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — The Receipt</h3>
+      <p>The hero IS the argument. A receipt that shows what others charge and what you charge. Monospace, raw, almost brutalist. The product sells itself through numbers. Scroll reveals the how.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #06060a; padding: 0; min-height: 380px; overflow: hidden; position: relative; font-family: system-ui, -apple-system, sans-serif;">
+      <!-- Direction B: The Statement -->
+      <div style="padding: 48px 28px; display: flex; flex-direction: column; justify-content: space-between; min-height: 380px; box-sizing: border-box;">
+        <div>
+          <div style="font-size: 48px; font-weight: 900; color: #fff; line-height: 0.95; letter-spacing: -2px; margin-bottom: 6px;">
+            ₹1,00,000
+          </div>
+          <div style="font-size: 48px; font-weight: 900; color: #fff; line-height: 0.95; letter-spacing: -2px; margin-bottom: 6px;">
+            in sales.
+          </div>
+          <div style="font-size: 48px; font-weight: 900; line-height: 0.95; letter-spacing: -2px; margin-bottom: 24px;">
+            <span style="color: #fff;">₹1,00,000</span><br>
+            <span style="color: #5ce5d5;">in your bank.</span>
+          </div>
+          <div style="width: 40px; height: 2px; background: #5ce5d5; margin-bottom: 16px;"></div>
+          <div style="color: #555; font-size: 13px; line-height: 1.7; max-width: 280px;">
+            Not ₹98,000 after Razorpay takes their cut.<br>
+            All of it. Every rupee. Yours.
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <div style="color: #5ce5d5; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid #5ce5d5; padding-bottom: 2px;">npm install upiagent →</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — The Statement</h3>
+      <p>Big money number that hits hard. "You made this much, you KEEP this much." Oversized type, one accent color, one CTA. Everything unnecessary is gone. The whitespace is the design.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background: #000; padding: 0; min-height: 380px; overflow: hidden; position: relative; font-family: system-ui, -apple-system, sans-serif;">
+      <!-- Direction C: The Terminal Proof -->
+      <div style="padding: 32px 24px;">
+        <div style="background: #0a0a0f; border: 1px solid #1a1a2a; border-radius: 10px; overflow: hidden;">
+          <!-- Terminal header -->
+          <div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #1a1a2a;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f57;"></div>
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #febc2e;"></div>
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #28c840;"></div>
+            <span style="color: #444; font-size: 11px; margin-left: 8px; font-family: monospace;">upiagent — payment verified</span>
+          </div>
+          <!-- Terminal body -->
+          <div style="padding: 16px 14px; font-family: 'SF Mono', monospace; font-size: 11px; line-height: 2;">
+            <div><span style="color: #5ce5d5;">$</span> <span style="color: #888;">npx upiagent init</span></div>
+            <div><span style="color: #444;">→ QR generated for ₹4,999</span></div>
+            <div><span style="color: #444;">→ customer paid via GPay</span></div>
+            <div><span style="color: #444;">→ gmail alert received</span></div>
+            <div><span style="color: #444;">→ AI verification:</span> <span style="color: #28c840; font-weight: 600;">CONFIRMED</span></div>
+            <div><span style="color: #444;">→ amount match:</span> <span style="color: #28c840;">✓</span> <span style="color: #444;">time window:</span> <span style="color: #28c840;">✓</span> <span style="color: #444;">dedup:</span> <span style="color: #28c840;">✓</span></div>
+            <div style="margin-top: 4px;"><span style="color: #5ce5d5;">$</span> <span style="color: #fff;">₹4,999 in your bank. ₹0 in fees.</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center;">
+          <div style="color: #fff; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px;">That's the whole product.</div>
+          <div style="color: #444; font-size: 13px;">QR. Pay. Verify. No gateway. No fees.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — The Terminal Proof</h3>
+      <p>Hero IS a terminal showing a real transaction completing. The product demonstrates itself. Below, one sentence: "That's the whole product." Developer brain-crack — they see the terminal and immediately get it. Merchants see the result.</p>
+    </div>
+  </div>
+</div>

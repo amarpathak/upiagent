@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>upiagent — Design Direction v4</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #fafaf8;
+    color: #1a1a1a;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .question-bar {
+    text-align: center;
+    padding: 24px 20px 12px;
+    font-size: 13px;
+    color: #999;
+    letter-spacing: 0.5px;
+  }
+
+  /* ====== DIRECTION A: Editorial Clean ====== */
+  .hero-a {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    transition: border-color 0.3s;
+    position: relative;
+  }
+  .hero-a:hover { border-color: #e0e0d8; }
+  .hero-a.selected { border-color: #2d6a4f; box-shadow: 0 0 0 4px rgba(45,106,79,0.1); }
+
+  .hero-a .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .hero-a .nav-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: -0.5px;
+  }
+  .hero-a .nav-links {
+    display: flex;
+    gap: 32px;
+    font-size: 14px;
+    color: #666;
+  }
+  .hero-a .nav-cta {
+    padding: 8px 20px;
+    border: 1px solid #1a1a1a;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .hero-a .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 64px;
+    padding: 8px 18px;
+    background: #f0ede6;
+    border-radius: 100px;
+    font-size: 13px;
+    color: #666;
+  }
+  .hero-a .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #2d6a4f;
+  }
+
+  .hero-a h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 76px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-top: 28px;
+    max-width: 780px;
+    color: #1a1a1a;
+  }
+  .hero-a h1 em {
+    font-style: italic;
+    color: #2d6a4f;
+  }
+
+  .hero-a .sub {
+    font-size: 17px;
+    color: #777;
+    line-height: 1.7;
+    margin-top: 24px;
+    max-width: 520px;
+  }
+
+  .hero-a .ctas {
+    display: flex;
+    gap: 12px;
+    margin-top: 36px;
+    align-items: center;
+  }
+  .hero-a .cta-main {
+    padding: 14px 32px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-a .cta-main svg { width: 16px; height: 16px; }
+  .hero-a .cta-second {
+    padding: 14px 32px;
+    border: 1px solid #ddd;
+    border-radius: 100px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  .hero-a .trust {
+    margin-top: 64px;
+    padding: 32px 0;
+    border-top: 1px solid #eee;
+    text-align: center;
+  }
+  .hero-a .trust-label {
+    font-size: 12px;
+    color: #bbb;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .hero-a .trust-logos {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .hero-a .trust-logo {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ccc;
+    letter-spacing: -0.5px;
+  }
+
+  /* Illustrated hero image area */
+  .hero-a .illustration {
+    margin-top: -120px;
+    margin-right: -32px;
+    float: right;
+    width: 480px;
+    height: 400px;
+    position: relative;
+    z-index: 0;
+  }
+  .hero-a .illust-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 30%, #fff8e1 60%, #fce4ec 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Abstract flowing shapes to suggest "money flowing freely" */
+  .hero-a .illust-placeholder::before {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(45,106,79,0.12) 0%, transparent 70%);
+    top: 20%; left: 10%;
+    animation: floatShape 6s ease-in-out infinite;
+  }
+  .hero-a .illust-placeholder::after {
+    content: '';
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,183,77,0.15) 0%, transparent 70%);
+    bottom: 10%; right: 15%;
+    animation: floatShape 8s ease-in-out infinite reverse;
+  }
+  @keyframes floatShape {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, -20px) scale(1.1); }
+  }
+
+  /* QR icon floating in illustration */
+  .hero-a .qr-float {
+    position: absolute;
+    top: 30%; left: 35%;
+    width: 80px; height: 80px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: floatQR 4s ease-in-out infinite;
+    z-index: 2;
+  }
+  @keyframes floatQR {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-12px) rotate(2deg); }
+  }
+  .hero-a .qr-float svg { width: 40px; height: 40px; color: #1a1a1a; }
+
+  /* Rupee symbol floating */
+  .hero-a .rupee-float {
+    position: absolute;
+    top: 55%; right: 25%;
+    font-family: 'Instrument Serif', serif;
+    font-size: 48px;
+    color: #2d6a4f;
+    opacity: 0.6;
+    animation: floatRupee 5s ease-in-out infinite;
+    z-index: 2;
+  }
+  @keyframes floatRupee {
+    0%, 100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-16px) rotate(5deg); }
+  }
+
+  .label-section {
+    text-align: center;
+    padding: 24px 20px 48px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .label-section h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 6px;
+  }
+  .label-section p {
+    color: #888;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .sep {
+    max-width: 100px;
+    height: 1px;
+    background: #e0e0d8;
+    margin: 20px auto 40px;
+  }
+
+  /* ====== DIRECTION B: Bold Warm ====== */
+  .hero-b {
+    max-width: 1200px;
+    margin: 0 auto 0;
+    padding: 0 32px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    transition: border-color 0.3s;
+    background: #fff;
+  }
+  .hero-b:hover { border-color: #e0e0d8; }
+  .hero-b.selected { border-color: #2d6a4f; box-shadow: 0 0 0 4px rgba(45,106,79,0.1); }
+
+  .hero-b .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+  }
+  .hero-b .nav-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .hero-b .center-hero {
+    text-align: center;
+    padding: 80px 0 40px;
+  }
+
+  .hero-b .pill {
+    display: inline-flex;
+    padding: 6px 16px;
+    background: #f5f0e8;
+    border-radius: 100px;
+    font-size: 13px;
+    color: #8b7355;
+    margin-bottom: 32px;
+  }
+
+  .hero-b h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 84px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -3px;
+    margin: 0 auto;
+    max-width: 900px;
+  }
+  .hero-b h1 .strike {
+    text-decoration: line-through;
+    text-decoration-color: #d4453a;
+    text-decoration-thickness: 3px;
+    color: #bbb;
+  }
+  .hero-b h1 .green {
+    color: #2d6a4f;
+    font-style: italic;
+  }
+
+  .hero-b .sub {
+    font-size: 17px;
+    color: #888;
+    line-height: 1.7;
+    margin: 28px auto 0;
+    max-width: 540px;
+  }
+
+  .hero-b .ctas {
+    display: flex;
+    gap: 12px;
+    margin-top: 36px;
+    justify-content: center;
+  }
+  .hero-b .cta-dark {
+    padding: 14px 36px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .hero-b .cta-outline {
+    padding: 14px 36px;
+    border: 1px solid #ddd;
+    border-radius: 100px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  /* Full-width illustration band */
+  .hero-b .illust-band {
+    width: calc(100% + 64px);
+    margin: 48px -32px 0;
+    height: 280px;
+    background: linear-gradient(180deg,
+      #fff 0%,
+      #f8f5ef 20%,
+      #e8f0e4 50%,
+      #d4e6cd 80%,
+      #c2ddb8 100%
+    );
+    border-radius: 0 0 20px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Wavy abstract landscape */
+  .hero-b .illust-band::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(180deg, transparent 0%, rgba(45,106,79,0.08) 100%);
+    border-radius: 50% 50% 0 0;
+    transform: scaleX(1.5);
+  }
+  .hero-b .illust-band .float-card {
+    position: absolute;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    padding: 16px 20px;
+    font-size: 13px;
+  }
+  .hero-b .float-card.fc1 {
+    top: 30px; left: 15%;
+    animation: floatShape 5s ease-in-out infinite;
+  }
+  .hero-b .float-card.fc1::before {
+    content: '₹0 fees';
+    font-weight: 600;
+    color: #2d6a4f;
+  }
+  .hero-b .float-card.fc2 {
+    top: 60px; right: 20%;
+    animation: floatShape 6s ease-in-out infinite reverse;
+  }
+  .hero-b .float-card.fc2::before {
+    content: '✓ AI Verified';
+    font-weight: 500;
+    color: #1a1a1a;
+  }
+  .hero-b .float-card.fc3 {
+    bottom: 40px; left: 40%;
+    animation: floatShape 7s ease-in-out infinite;
+  }
+  .hero-b .float-card.fc3::before {
+    content: '⚡ <10s verification';
+    font-weight: 500;
+    color: #1a1a1a;
+  }
+
+  .hero-b .trust-row {
+    text-align: center;
+    padding: 0 0 32px;
+    margin-top: -1px;
+    background: linear-gradient(180deg, rgba(194,221,184,0.3) 0%, #fff 60%);
+  }
+  .hero-b .trust-row .t-label {
+    font-size: 11px;
+    color: #bbb;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-top: 24px;
+  }
+  .hero-b .trust-row .t-logos {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ccc;
+  }
+
+  /* ====== DIRECTION C: Minimal Mono ====== */
+  .hero-c {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    transition: border-color 0.3s;
+    background: #fff;
+  }
+  .hero-c:hover { border-color: #e0e0d8; }
+  .hero-c.selected { border-color: #2d6a4f; box-shadow: 0 0 0 4px rgba(45,106,79,0.1); }
+
+  .hero-c .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px solid #f0f0ec;
+  }
+  .hero-c .nav-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .hero-c .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 480px;
+  }
+
+  .hero-c .split-left {
+    padding: 80px 48px 80px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .hero-c h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 64px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -2px;
+  }
+  .hero-c h1 .italic-green {
+    font-style: italic;
+    color: #2d6a4f;
+  }
+
+  .hero-c .sub {
+    color: #888;
+    font-size: 16px;
+    line-height: 1.7;
+    margin-top: 20px;
+    max-width: 400px;
+  }
+
+  .hero-c .ctas {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+  }
+  .hero-c .btn-dark {
+    padding: 12px 28px;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .hero-c .btn-ghost {
+    padding: 12px 28px;
+    border: 1px solid #e0e0d8;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  .hero-c .split-right {
+    padding: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero-c .terminal-card {
+    width: 100%;
+    background: #0a0a0f;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+  }
+  .hero-c .term-header {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1a1a2a;
+  }
+  .hero-c .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .hero-c .term-dot.r { background: #ff5f57; }
+  .hero-c .term-dot.y { background: #febc2e; }
+  .hero-c .term-dot.g { background: #28c840; }
+
+  .hero-c .term-body {
+    padding: 20px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 2.2;
+    color: #555;
+  }
+  .hero-c .term-body .prompt { color: #2d6a4f; }
+  .hero-c .term-body .ok { color: #28c840; }
+  .hero-c .term-body .highlight { color: #fff; font-weight: 500; }
+
+  .hero-c .term-line {
+    opacity: 0;
+    animation: termReveal 0.4s ease forwards;
+  }
+  .hero-c .term-line:nth-child(1) { animation-delay: 0.2s; }
+  .hero-c .term-line:nth-child(2) { animation-delay: 0.6s; }
+  .hero-c .term-line:nth-child(3) { animation-delay: 1.0s; }
+  .hero-c .term-line:nth-child(4) { animation-delay: 1.4s; }
+  .hero-c .term-line:nth-child(5) { animation-delay: 1.8s; }
+  .hero-c .term-line:nth-child(6) { animation-delay: 2.2s; }
+
+  @keyframes termReveal {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Selection click handler */
+  [data-choice] { cursor: pointer; }
+</style>
+<script>
+  function toggleSelect(el) {
+    document.querySelectorAll('[data-choice]').forEach(e => {
+      if (e !== el) e.classList.remove('selected');
+    });
+    el.classList.toggle('selected');
+
+    // Record selection
+    const choice = el.dataset.choice;
+    const text = el.querySelector('h1')?.textContent?.trim() || choice;
+    if (window.__recordEvent) window.__recordEvent({ type: 'click', choice, text });
+  }
+</script>
+</head>
+<body>
+
+<div class="question-bar">WHICH DIRECTION? — click to select</div>
+
+<!-- A: Editorial Left-aligned -->
+<div class="hero-a" data-choice="a" onclick="toggleSelect(this)">
+  <div class="nav">
+    <div class="nav-logo">upiagent</div>
+    <div class="nav-links">
+      <span>How it works</span>
+      <span>Demo</span>
+      <span>Pricing</span>
+      <span>Docs</span>
+    </div>
+    <div class="nav-cta">Get started</div>
+  </div>
+
+  <div style="position: relative; overflow: hidden; padding-bottom: 48px;">
+    <div class="illustration">
+      <div class="illust-placeholder">
+        <div class="qr-float">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="3" height="3"/>
+            <rect x="18" y="18" width="3" height="3"/>
+            <rect x="14" y="18" width="3" height="3"/>
+            <rect x="18" y="14" width="3" height="3"/>
+          </svg>
+        </div>
+        <div class="rupee-float">₹</div>
+      </div>
+    </div>
+
+    <div class="badge">
+      <div class="badge-dot"></div>
+      Open source · Built in India
+    </div>
+
+    <h1>Accept UPI payments.<br><em>Keep every rupee.</em></h1>
+
+    <p class="sub">
+      No Razorpay. No payment gateway fees. Generate a QR, customer pays with any UPI app, AI verifies the transaction. Money goes straight to your bank.
+    </p>
+
+    <div class="ctas">
+      <div class="cta-main">
+        Start building today
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 8h10M9 4l4 4-4 4"/>
+        </svg>
+      </div>
+      <div class="cta-second">See the live demo</div>
+    </div>
+  </div>
+
+  <div class="trust">
+    <div class="trust-label">Works with every UPI app</div>
+    <div class="trust-logos">
+      <span class="trust-logo">GPay</span>
+      <span class="trust-logo">PhonePe</span>
+      <span class="trust-logo">Paytm</span>
+      <span class="trust-logo">CRED</span>
+      <span class="trust-logo">BHIM</span>
+      <span class="trust-logo">Amazon Pay</span>
+    </div>
+  </div>
+</div>
+
+<div class="label-section">
+  <h3>A — Editorial with illustration</h3>
+  <p>Left-aligned headline, floating illustrated hero on right with abstract art + QR icon. Serif italic for the accent. Clean trust bar. Like the reference but with upiagent's personality.</p>
+</div>
+
+<div class="sep"></div>
+
+<!-- B: Centered Bold -->
+<div class="hero-b" data-choice="b" onclick="toggleSelect(this)">
+  <div class="nav">
+    <div class="nav-logo">upiagent</div>
+    <div class="nav-links" style="display:flex;gap:32px;font-size:14px;color:#666;">
+      <span>How it works</span>
+      <span>Demo</span>
+      <span>Pricing</span>
+      <span>Docs</span>
+    </div>
+    <div style="padding:8px 20px;border:1px solid #1a1a1a;border-radius:100px;font-size:13px;font-weight:500;">Sign up</div>
+  </div>
+
+  <div class="center-hero">
+    <div class="pill">Zero fees · AI verified · Open source</div>
+    <h1>
+      <span class="strike">Payment gateway fees.</span><br>
+      UPI payments that are<br>
+      <span class="green">actually free.</span>
+    </h1>
+    <p class="sub">
+      Generate a QR code. Customer pays with any UPI app. AI verifies the transaction in seconds. Money goes straight to your bank account — not through ours.
+    </p>
+    <div class="ctas">
+      <div class="cta-dark">Start building today →</div>
+      <div class="cta-outline">Watch it work</div>
+    </div>
+  </div>
+
+  <div class="illust-band">
+    <div class="float-card fc1"></div>
+    <div class="float-card fc2"></div>
+    <div class="float-card fc3"></div>
+  </div>
+
+  <div class="trust-row">
+    <div class="t-label">Works with every UPI app</div>
+    <div class="t-logos">
+      <span>GPay</span>
+      <span>PhonePe</span>
+      <span>Paytm</span>
+      <span>CRED</span>
+      <span>BHIM</span>
+    </div>
+  </div>
+</div>
+
+<div class="label-section">
+  <h3>B — Centered with strikethrough</h3>
+  <p>Centered layout closest to your reference. Red strikethrough on "Payment gateway fees." Warm gradient landscape with floating feature cards. The rebellion is in the copy, the design is clean premium.</p>
+</div>
+
+<div class="sep"></div>
+
+<!-- C: Split — editorial + terminal -->
+<div class="hero-c" data-choice="c" onclick="toggleSelect(this)">
+  <div class="nav">
+    <div class="nav-logo">upiagent</div>
+    <div class="nav-links" style="display:flex;gap:32px;font-size:14px;color:#666;">
+      <span>How it works</span>
+      <span>Demo</span>
+      <span>Pricing</span>
+      <span>Docs</span>
+    </div>
+    <div style="padding:8px 20px;background:#1a1a1a;color:#fff;border-radius:8px;font-size:13px;font-weight:500;">Get started</div>
+  </div>
+
+  <div class="split">
+    <div class="split-left">
+      <h1>UPI payments<br>without the<br><span class="italic-green">middleman.</span></h1>
+      <p class="sub">
+        No gateway. No fees. No merchant onboarding. Just a QR code, a UPI app, and AI that verifies every transaction in seconds.
+      </p>
+      <div class="ctas">
+        <div class="btn-dark">npm install upiagent</div>
+        <div class="btn-ghost">Live demo →</div>
+      </div>
+    </div>
+    <div class="split-right">
+      <div class="terminal-card">
+        <div class="term-header">
+          <div class="term-dot r"></div>
+          <div class="term-dot y"></div>
+          <div class="term-dot g"></div>
+        </div>
+        <div class="term-body">
+          <div class="term-line"><span class="prompt">$</span> npx upiagent generate --amount 4999</div>
+          <div class="term-line">  → QR ready. Waiting for payment...</div>
+          <div class="term-line">  → ₹4,999 received via PhonePe</div>
+          <div class="term-line">  <span class="ok">✓</span> amount · <span class="ok">✓</span> time · <span class="ok">✓</span> dedup</div>
+          <div class="term-line">  <span class="ok">✓ PAYMENT VERIFIED</span></div>
+          <div class="term-line">  <span class="highlight">₹4,999 in your bank. ₹0 in fees.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="label-section">
+  <h3>C — Split: story + proof</h3>
+  <p>Left: serif headline for everyone. Right: dark terminal card showing a live transaction. Serves both audiences on one screen. The contrast between light editorial and dark terminal IS the design concept.</p>
+</div>
+
+<div style="height: 60px;"></div>
+
+</body>
+</html>
