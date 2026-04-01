@@ -5,23 +5,59 @@ import { motion, useInView } from "@/components/motion-client";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3001";
 
-const models = [
+const plans = [
   {
-    name: "Gemini Flash (free tier)",
-    perVerification: "~$0.0001",
-    per1000: "~$0.10",
-    highlight: true,
-  },
-  {
-    name: "GPT-4o-mini",
-    perVerification: "~$0.001",
-    per1000: "~$1.00",
+    name: "Free",
+    price: "₹0",
+    period: "forever",
+    description: "For indie hackers testing the waters.",
+    features: [
+      "100 verifications/month",
+      "Gemini Flash (free tier LLM)",
+      "1 UPI ID",
+      "Gmail verification source",
+      "Community support (GitHub)",
+      "Dashboard with basic analytics",
+    ],
+    cta: "Start free",
+    ctaHref: `${DASHBOARD_URL}/signup`,
     highlight: false,
   },
   {
-    name: "Claude Sonnet",
-    perVerification: "~$0.003",
-    per1000: "~$3.00",
+    name: "Pro",
+    price: "₹999",
+    period: "/month",
+    description: "For serious builders shipping real products.",
+    features: [
+      "Unlimited verifications",
+      "Any LLM (bring your own key)",
+      "Unlimited UPI IDs",
+      "Gmail + SMS sources (coming soon)",
+      "Priority email support",
+      "Advanced dashboard + webhooks",
+      "Custom verification rules",
+      "API access",
+    ],
+    cta: "Start building",
+    ctaHref: `${DASHBOARD_URL}/signup?plan=pro`,
+    highlight: true,
+  },
+  {
+    name: "Setup & Support",
+    price: "₹4,999",
+    period: "one-time",
+    description: "We set it up for you. White-glove onboarding.",
+    features: [
+      "Everything in Pro",
+      "1:1 setup call (30 min)",
+      "Gmail OAuth configured for you",
+      "UPI ID + QR integration done",
+      "Custom LLM tuning for your bank",
+      "3 months priority support",
+      "Dedicated Telegram/WhatsApp",
+    ],
+    cta: "Book a call",
+    ctaHref: "https://cal.com/amarpathak/upiagent-setup",
     highlight: false,
   },
 ];
@@ -35,90 +71,112 @@ export function PricingCta() {
   return (
     <>
       {/* ── Pricing ──────────────────────────────────────── */}
-      <section id="pricing" ref={pricingRef} className="border-t border-border pt-16 px-6 pb-20">
-        <div className="max-w-5xl mx-auto">
+      <section id="pricing" ref={pricingRef} className="border-t border-border pt-16 px-8 pb-20">
+        <div className="max-w-[1100px] mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={pricingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="mb-10"
+            className="text-center mb-12"
           >
-            <span className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] mb-4 block">
-              Pricing
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-serif font-medium text-foreground tracking-tight mb-3">
-              Pay for AI tokens, not transactions.
+            <p className="text-[11px] text-muted-light tracking-[2px] uppercase mb-3">Pricing</p>
+            <h2 className="font-serif text-[36px] font-normal tracking-tight mb-3">
+              Simple plans.{" "}
+              <em className="italic bg-gradient-to-r from-accent-green to-accent-blue bg-clip-text text-transparent">
+                No surprises.
+              </em>
             </h2>
-            <p className="text-sm text-muted max-w-2xl">
-              Razorpay charges 2% per transaction. On &#8377;499, that&apos;s &#8377;9.98. upiagent costs &#8377;0.008.
+            <p className="text-muted text-[15px] max-w-[520px] mx-auto">
+              Razorpay charges 2% per transaction. On &#8377;1 lakh in sales, that&apos;s &#8377;2,000 gone.
+              With upiagent, you keep everything.
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={pricingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
-          >
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-surface-raised/50">
-                    <th className="text-left px-5 py-3 font-mono text-[11px] text-muted uppercase tracking-wider font-medium">
-                      Model
-                    </th>
-                    <th className="text-right px-5 py-3 font-mono text-[11px] text-muted uppercase tracking-wider font-medium">
-                      Per verification
-                    </th>
-                    <th className="text-right px-5 py-3 font-mono text-[11px] text-muted uppercase tracking-wider font-medium">
-                      Per 1,000
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {models.map((model) => (
-                    <tr
-                      key={model.name}
-                      className={`border-b border-border last:border-b-0 transition-colors ${
-                        model.highlight
-                          ? "bg-accent-green/[0.04] hover:bg-accent-green/[0.07]"
-                          : "hover:bg-surface-raised/40"
-                      }`}
-                    >
-                      <td className="px-5 py-4">
-                        <span
-                          className={`text-[13px] font-medium ${
-                            model.highlight ? "text-accent-green" : "text-foreground/80"
-                          }`}
-                        >
-                          {model.name}
-                        </span>
-                        {model.highlight && (
-                          <span className="ml-2 text-[10px] font-mono text-accent-green/70 border border-accent-green/20 px-1.5 py-0.5 rounded">
-                            default
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono text-[13px] text-muted">
-                        {model.perVerification}
-                      </td>
-                      <td className="px-5 py-4 text-right font-mono text-[13px] text-muted">
-                        {model.per1000}
-                      </td>
-                    </tr>
+          {/* Plan cards */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            {plans.map((plan, i) => (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={pricingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: "easeOut" }}
+                className={`relative rounded-2xl border p-8 flex flex-col ${
+                  plan.highlight
+                    ? "border-accent-green/30 bg-accent-green/[0.02] shadow-sm"
+                    : "border-border bg-surface"
+                }`}
+              >
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-8 px-3 py-1 bg-accent-green text-white text-[11px] font-medium rounded-full">
+                    Most popular
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <h3 className="text-[18px] font-semibold mb-1">{plan.name}</h3>
+                  <p className="text-[13px] text-muted mb-4">{plan.description}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-serif text-[40px] tracking-tight">{plan.price}</span>
+                    <span className="text-[13px] text-muted">{plan.period}</span>
+                  </div>
+                </div>
+
+                <ul className="space-y-3 mb-8 flex-1">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-[13px] text-muted">
+                      <svg className="w-4 h-4 text-accent-green shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 8.5l3 3 7-7" />
+                      </svg>
+                      {feature}
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+
+                <a
+                  href={plan.ctaHref}
+                  className={`block text-center py-3 rounded-xl text-[14px] font-medium transition-all ${
+                    plan.highlight
+                      ? "bg-foreground text-background hover:bg-foreground/90 hover:-translate-y-0.5 hover:shadow-lg"
+                      : "border border-border text-foreground hover:border-border-hover hover:bg-surface-raised"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* LLM cost note */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={pricingInView ? { opacity: 1 } : { opacity: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8 p-6 rounded-xl border border-border bg-surface-raised"
+          >
+            <p className="text-[13px] text-muted mb-3 font-medium">What about LLM costs?</p>
+            <div className="grid sm:grid-cols-3 gap-4 text-[12px] font-mono text-muted">
+              <div>
+                <span className="text-accent-green font-semibold">Gemini Flash</span> (default, free tier)
+                <br />~$0.0001 per verification
+              </div>
+              <div>
+                <span className="text-foreground/70">GPT-4o-mini</span> (bring your key)
+                <br />~$0.001 per verification
+              </div>
+              <div>
+                <span className="text-foreground/70">Claude Sonnet</span> (bring your key)
+                <br />~$0.003 per verification
+              </div>
             </div>
-            <p className="mt-4 text-[12px] text-muted/60 font-mono">
-              Default is Gemini (free tier). Bring your own key for any model.
+            <p className="text-[11px] text-muted-light mt-3">
+              Free plan includes Gemini Flash at no cost. Pro plan: bring your own API key for any model.
             </p>
           </motion.div>
         </div>
       </section>
 
       {/* ── Final CTA ────────────────────────────────────── */}
-      <div ref={ctaRef} className="relative overflow-hidden px-6 py-24">
-        {/* Animated radial gradients */}
+      <div ref={ctaRef} className="relative overflow-hidden px-8 py-24">
         <motion.div
           initial={{ opacity: 0.3 }}
           animate={ctaInView ? { opacity: 1 } : { opacity: 0.3 }}
@@ -132,16 +190,16 @@ export function PricingCta() {
           }}
         />
 
-        <div className="relative max-w-5xl mx-auto text-center">
+        <div className="relative max-w-[600px] mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={ctaInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
           >
-            <h2 className="text-4xl sm:text-5xl font-serif font-medium text-foreground tracking-tight mb-4">
+            <h2 className="font-serif text-[36px] font-normal tracking-tight mb-4">
               Start accepting payments today.
             </h2>
-            <p className="text-base text-muted mb-10">
+            <p className="text-muted text-[15px] mb-8">
               No sign-up. No approval. No fees. Just npm install.
             </p>
           </motion.div>
@@ -154,13 +212,13 @@ export function PricingCta() {
           >
             <a
               href={`${DASHBOARD_URL}/signup`}
-              className="px-7 py-3 rounded-xl bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
+              className="px-7 py-3 rounded-xl bg-foreground text-background text-[14px] font-medium hover:bg-foreground/90 transition-all hover:-translate-y-0.5 hover:shadow-lg"
             >
               Get started free
             </a>
             <a
               href="https://github.com/AmarPathak/upiagent"
-              className="px-7 py-3 rounded-xl border border-border text-sm font-medium text-foreground hover:border-border-hover hover:bg-surface-raised transition-colors"
+              className="px-7 py-3 rounded-xl border border-border text-[14px] font-medium text-foreground hover:border-border-hover hover:bg-surface-raised transition-colors"
             >
               Star on GitHub
             </a>
