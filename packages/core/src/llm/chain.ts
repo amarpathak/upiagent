@@ -91,8 +91,18 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
  * Both approaches are more reliable than asking the LLM to "please respond
  * in JSON format" (which it might ignore or format incorrectly).
  */
-export function createPaymentExtractionChain(config: LlmConfig) {
+export function createPaymentExtractionChain(
+  config: LlmConfig,
+  options?: { callbacks?: { handleLLMEnd: (output: any) => Promise<void> }[] },
+) {
   const model = createLlmModel(config);
+
+  // Bind callbacks if provided so LangChain fires them after each LLM call.
+  // This is how CostTracker hooks into the chain — it's not possible via
+  // withStructuredOutput() directly since that doesn't expose token metadata.
+  const modelWithCallbacks = options?.callbacks
+    ? model.bind({ callbacks: options.callbacks })
+    : model;
 
   // .withStructuredOutput() tells LangChain:
   // "Force the LLM to respond in this exact Zod schema format."
@@ -102,7 +112,7 @@ export function createPaymentExtractionChain(config: LlmConfig) {
   // 2. Passes the schema to the LLM's native structured output feature
   // 3. Parses the LLM's response back through Zod for validation
   // 4. Returns a typed object (not a string) — ParsedPayment
-  const structuredModel = model.withStructuredOutput(parsedPaymentSchema, {
+  const structuredModel = modelWithCallbacks.withStructuredOutput(parsedPaymentSchema, {
     // "name" identifies this schema in the LLM API call.
     // For OpenAI, this becomes the function name. For Anthropic, the tool name.
     name: "extract_payment",
@@ -132,8 +142,9 @@ export function createPaymentExtractionChain(config: LlmConfig) {
 export async function parsePaymentEmail(
   email: EmailMessage,
   config: LlmConfig,
+  options?: { callbacks?: { handleLLMEnd: (output: any) => Promise<void> }[] },
 ): Promise<ParsedPayment | null> {
-  const chain = createPaymentExtractionChain(config);
+  const chain = createPaymentExtractionChain(config, options);
 
   // Sanitize email content before sending to LLM to mitigate prompt injection.
   // The sanitizer removes known injection patterns, JSON-like content, and truncates.

@@ -94,4 +94,42 @@ export class CostTracker {
     this.totalOutputTokens = 0;
     this.callCount = 0;
   }
+
+  /**
+   * Returns a LangChain-compatible callback handler that captures token usage.
+   *
+   * LangChain's withStructuredOutput() doesn't expose token counts automatically —
+   * you need to hook into the callback system. This method returns a handler
+   * that fits the LangChain callback interface and pipes token data into record().
+   *
+   * Usage:
+   *   const tracker = new CostTracker({ budgetTokens: 10_000 });
+   *   const chain = createPaymentExtractionChain(config, {
+   *     callbacks: [tracker.asLangChainHandler()]
+   *   });
+   */
+  asLangChainHandler(): {
+    handleLLMEnd: (output: {
+      generations: unknown[];
+      llmOutput?: {
+        tokenUsage?: {
+          promptTokens?: number;
+          completionTokens?: number;
+          totalTokens?: number;
+        };
+      };
+    }) => Promise<void>;
+  } {
+    return {
+      handleLLMEnd: async (output) => {
+        const usage = output.llmOutput?.tokenUsage;
+        if (!usage) return;
+        this.record({
+          inputTokens: usage.promptTokens ?? 0,
+          outputTokens: usage.completionTokens ?? 0,
+          totalTokens: usage.totalTokens ?? 0,
+        });
+      },
+    };
+  }
 }
