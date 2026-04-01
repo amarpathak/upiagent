@@ -68,7 +68,7 @@ export function Terminal() {
                   line.type === "cmd"
                     ? "text-foreground/80"
                     : line.type === "success"
-                      ? "text-cyan"
+                      ? "text-accent-green"
                       : "text-muted/40"
                 }
               >
@@ -79,7 +79,7 @@ export function Terminal() {
         ))}
 
         {visibleLines > 0 && visibleLines < lines.length && (
-          <span className="cursor-blink text-accent/50 text-xs">_</span>
+          <span className="cursor-blink text-accent-blue/50 text-xs">_</span>
         )}
       </div>
     </div>
