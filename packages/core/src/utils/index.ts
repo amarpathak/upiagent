@@ -1,6 +1,7 @@
 export { Logger, type LogLevel, type LogEntry, type LogHandler } from "./logger.js";
 export { withRetry, type RetryOptions } from "./retry.js";
 export { CostTracker, type TokenUsage, type CostTrackerOptions } from "./cost.js";
+export { LlmRateLimiter } from "./rate-limiter.js";
 export {
   UpiAgentError,
   GmailAuthError,
