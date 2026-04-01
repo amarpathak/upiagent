@@ -11,7 +11,7 @@ const supabase = createClient(
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 // ── H1: Demo merchant safeguard ──────────────────────────
-const DEMO_UPI_ID = "amarpathakhdfc@ybl";
+const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 
 // ── H2: Lookback cap ────────────────────────────────────
 const MAX_LOOKBACK_MINUTES = 10;
@@ -173,7 +173,7 @@ function extractBody(payload: Payload): string {
  */
 export async function POST(req: Request) {
   // H4: Rate limit by IP + global
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: "Rate limited. Try again in a minute." }, { status: 429 });
   }
@@ -310,7 +310,7 @@ export async function POST(req: Request) {
 
       const geminiData = await geminiRes.json();
       const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = text.match(/\{[\s\S]*?\}/);
       if (!jsonMatch) continue;
 
       let parsed;

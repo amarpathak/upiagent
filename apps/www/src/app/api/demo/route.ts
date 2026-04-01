@@ -37,7 +37,7 @@ setInterval(() => {
 }, 5 * 60_000);
 
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (isDemoRateLimited(ip)) {
     return NextResponse.json(
       { error: "Too many requests. Please wait before trying again." },
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const txnId = `TXN_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
 
   const params = new URLSearchParams();
-  params.set("pa", upiId || "amarpathakhdfc@ybl");
+  params.set("pa", upiId || process.env.DEMO_UPI_ID || "demo@ybl");
   params.set("pn", merchantName || "upiagent demo");
   params.set("am", finalAmount.toFixed(2));
   params.set("tr", txnId);

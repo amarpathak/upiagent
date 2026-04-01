@@ -1,3 +1,4 @@
 export { createPaymentExtractionChain, parsePaymentEmail } from "./chain.js";
 export { parsedPaymentSchema, type ParsedPayment } from "./schema.js";
+export { sanitizeEmailForLlm } from "./prompts.js";
 export type { LlmConfig, LlmProvider } from "./types.js";

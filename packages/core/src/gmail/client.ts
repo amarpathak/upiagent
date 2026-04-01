@@ -33,6 +33,50 @@ const DEFAULT_BANK_ALERT_QUERY = [
   "from:noreply@googlepay.com",
 ].join(" OR ");
 
+/**
+ * Set of known bank sender email addresses, extracted from the default query.
+ * Used for post-fetch validation to ensure emails genuinely came from trusted senders.
+ */
+const KNOWN_BANK_SENDERS: Set<string> = new Set([
+  "alerts@hdfcbank.net",
+  "alerts@hdfcbank.bank.in",
+  "alerts@icicibank.com",
+  "alerts@axisbank.com",
+  "noreply@sbi.co.in",
+  "alerts@kotak.com",
+  "alerts@yesbank.in",
+  "alerts@pnb.co.in",
+  "alerts@bankofbaroda.co.in",
+  "alerts@indusind.com",
+  "noreply@paytm.com",
+  "noreply@phonepe.com",
+  "noreply@googlepay.com",
+]);
+
+/**
+ * Extracts the raw email address from a `from` header value.
+ * Handles both "Name <email@example.com>" and plain "email@example.com" formats.
+ */
+function extractEmailAddress(from: string): string {
+  const match = from.match(/<([^>]+)>/);
+  return (match?.[1] ?? from).trim().toLowerCase();
+}
+
+/**
+ * Validates that an email's sender is in the known bank senders list.
+ * Returns true if valid, false (with a console warning) if not.
+ */
+function validateSender(from: string): boolean {
+  const email = extractEmailAddress(from);
+  if (KNOWN_BANK_SENDERS.has(email)) {
+    return true;
+  }
+  console.warn(
+    `[GmailClient] Filtered out email from unknown sender: ${from}`,
+  );
+  return false;
+}
+
 export class GmailClient {
   private gmail: gmail_v1.Gmail;
 
@@ -93,6 +137,11 @@ export class GmailClient {
       }),
     );
 
-    return messages.filter((msg): msg is EmailMessage => msg !== null);
+    const parsed = messages.filter((msg): msg is EmailMessage => msg !== null);
+
+    // Post-fetch sender validation: even though the Gmail query filters by
+    // sender, the `from` field could be spoofed or the query could be
+    // overridden via options.query. Filter out anything not from a known bank.
+    return parsed.filter((msg) => validateSender(msg.from));
   }
 }

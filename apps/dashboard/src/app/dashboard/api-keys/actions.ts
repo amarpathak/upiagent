@@ -3,6 +3,21 @@
 import { randomBytes, createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod/v4";
+
+const createApiKeySchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(64, "Name must be at most 64 characters")
+    .trim(),
+});
+
+const deleteApiKeySchema = z.object({
+  key_id: z
+    .string()
+    .uuid("Invalid key ID format"),
+});
 
 export async function createApiKey(formData: FormData) {
   const supabase = await createClient();
@@ -28,10 +43,16 @@ export async function createApiKey(formData: FormData) {
     return { error: "Merchant not found" };
   }
 
-  const name = formData.get("name") as string;
-  if (!name) {
-    return { error: "Name is required" };
+  const result = createApiKeySchema.safeParse({
+    name: formData.get("name") as string,
+  });
+  if (!result.success) {
+    const message = result.error.issues.map((i) => i.message).join(", ");
+    console.error("API key creation validation failed:", message);
+    return { error: message };
   }
+
+  const { name } = result.data;
 
   const rawKey = `upi_ak_${randomBytes(32).toString("hex")}`;
   const keyHash = createHash("sha256").update(rawKey).digest("hex");
@@ -77,15 +98,21 @@ export async function deleteApiKey(formData: FormData) {
     return { error: "Merchant not found" };
   }
 
-  const keyId = formData.get("key_id") as string;
-  if (!keyId) {
-    return { error: "Key ID is required" };
+  const result = deleteApiKeySchema.safeParse({
+    key_id: formData.get("key_id") as string,
+  });
+  if (!result.success) {
+    const message = result.error.issues.map((i) => i.message).join(", ");
+    console.error("API key deletion validation failed:", message);
+    return { error: message };
   }
+
+  const { key_id } = result.data;
 
   const { error } = await supabase
     .from("api_keys")
     .delete()
-    .eq("id", keyId)
+    .eq("id", key_id)
     .eq("merchant_id", merchant.id);
 
   if (error) {

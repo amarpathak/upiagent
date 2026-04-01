@@ -3,6 +3,30 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import QRCode from "qrcode";
+import { z } from "zod/v4";
+
+const createPaymentSchema = z.object({
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine(
+      (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      "Amount must be a positive number"
+    )
+    .refine(
+      (val) => parseFloat(val) <= 100000,
+      "Amount must be at most 1,00,000"
+    ),
+  note: z
+    .string()
+    .max(255, "Note must be at most 255 characters")
+    .trim()
+    .optional()
+    .or(z.literal("")),
+  addPaisa: z
+    .string()
+    .optional(),
+});
 
 export async function createPaymentAction(formData: FormData) {
   const supabase = await createClient();
@@ -25,16 +49,23 @@ export async function createPaymentAction(formData: FormData) {
     throw new Error("Merchant not found");
   }
 
-  const rawAmount = parseFloat(formData.get("amount") as string);
-  if (isNaN(rawAmount) || rawAmount <= 0) {
-    throw new Error("Invalid amount");
+  const result = createPaymentSchema.safeParse({
+    amount: formData.get("amount") as string,
+    note: (formData.get("note") as string) || "",
+    addPaisa: (formData.get("addPaisa") as string) || undefined,
+  });
+
+  if (!result.success) {
+    const message = result.error.issues.map((i) => i.message).join(", ");
+    console.error("Payment creation validation failed:", message);
+    throw new Error(message);
   }
 
-  const note = (formData.get("note") as string) || "";
-  const addPaisa = formData.get("addPaisa") === "on";
+  const { amount: amountStr, note, addPaisa } = result.data;
+  const rawAmount = parseFloat(amountStr);
 
   let finalAmount = rawAmount;
-  if (addPaisa) {
+  if (addPaisa === "on") {
     const paisa = Math.floor(Math.random() * 99 + 1) / 100;
     finalAmount = rawAmount + paisa;
   }
@@ -47,7 +78,7 @@ export async function createPaymentAction(formData: FormData) {
     am: finalAmount.toFixed(2),
     tr: txnId,
     cu: "INR",
-    tn: note,
+    tn: note || "",
   });
   const intentUrl = `upi://pay?${params.toString()}`;
 
@@ -66,7 +97,7 @@ export async function createPaymentAction(formData: FormData) {
       transaction_id: txnId,
       amount: rawAmount,
       amount_with_paisa: finalAmount,
-      note,
+      note: note || "",
       intent_url: intentUrl,
       qr_data_url: qrDataUrl,
       status: "pending",

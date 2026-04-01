@@ -38,6 +38,7 @@ export type { GmailCredentials, EmailMessage, GmailSearchOptions } from "./gmail
 // LLM parser — extract structured payment data from emails
 export { parsePaymentEmail, createPaymentExtractionChain } from "./llm/index.js";
 export { parsedPaymentSchema, type ParsedPayment } from "./llm/index.js";
+export { sanitizeEmailForLlm } from "./llm/index.js";
 export type { LlmConfig, LlmProvider } from "./llm/index.js";
 
 // Security — 4-layer validation pipeline

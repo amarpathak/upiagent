@@ -26,7 +26,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { paymentExtractionPrompt } from "./prompts.js";
+import { paymentExtractionPrompt, sanitizeEmailForLlm } from "./prompts.js";
 import { parsedPaymentSchema, type ParsedPayment } from "./schema.js";
 import type { LlmConfig } from "./types.js";
 import type { EmailMessage } from "../gmail/types.js";
@@ -135,11 +135,15 @@ export async function parsePaymentEmail(
 ): Promise<ParsedPayment | null> {
   const chain = createPaymentExtractionChain(config);
 
-  // Invoke the chain with the email data.
+  // Sanitize email content before sending to LLM to mitigate prompt injection.
+  // The sanitizer removes known injection patterns, JSON-like content, and truncates.
+  const { sanitizedSubject, sanitizedBody } = sanitizeEmailForLlm(email.subject, email.body);
+
+  // Invoke the chain with the sanitized email data.
   // These keys must match the {placeholders} in the prompt template.
   const result = await chain.invoke({
-    subject: email.subject,
-    body: email.body,
+    subject: sanitizedSubject,
+    body: sanitizedBody,
     from: email.from,
   });
 

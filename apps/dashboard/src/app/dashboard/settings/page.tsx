@@ -26,10 +26,17 @@ export default async function SettingsPage() {
     redirect("/onboarding");
   }
 
+  // Never send the decrypted API key to the client
+  const { llm_api_key, ...safeMerchant } = merchant;
+  const merchantForClient = {
+    ...safeMerchant,
+    has_llm_api_key: !!llm_api_key,
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
-      <SettingsForm merchant={merchant} />
+      <SettingsForm merchant={merchantForClient} />
     </div>
   );
 }

@@ -26,7 +26,7 @@ interface Merchant {
   gmail_client_secret: string | null;
   gmail_refresh_token: string | null;
   llm_provider: string | null;
-  llm_api_key: string | null;
+  has_llm_api_key: boolean;
   webhook_url: string | null;
   enabled_sources: string[] | null;
   display_name: string | null;
@@ -226,8 +226,8 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
                     id="llm_api_key"
                     name="llm_api_key"
                     type={showLlmKey ? "text" : "password"}
-                    placeholder="sk-... or AIza..."
-                    defaultValue={merchant.llm_api_key || ""}
+                    placeholder={merchant.has_llm_api_key ? "Key set — leave blank to keep" : "sk-... or AIza..."}
+                    defaultValue=""
                     className="font-mono text-xs"
                   />
                   <button
