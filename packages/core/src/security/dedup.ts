@@ -47,7 +47,7 @@ export interface DedupStore {
   /** Check if a reference ID has been seen before */
   has(referenceId: string): Promise<boolean>;
   /** Mark a reference ID as processed */
-  add(referenceId: string): Promise<void>;
+  add(referenceId: string, ttlMinutes?: number): Promise<void>;
 }
 
 /**
@@ -71,7 +71,7 @@ export class InMemoryDedupStore implements DedupStore {
     return this.store.has(referenceId);
   }
 
-  async add(referenceId: string): Promise<void> {
+  async add(referenceId: string, _ttlMinutes?: number): Promise<void> {
     this.store.set(referenceId, Date.now());
   }
 
