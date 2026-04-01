@@ -13,7 +13,7 @@ const plans = [
     description: "For indie hackers testing the waters.",
     features: [
       "100 payments/month",
-      "Any supported LLM",
+
       "1 UPI ID",
       "Gmail verification source",
       "Community support (GitHub)",
@@ -30,7 +30,7 @@ const plans = [
     description: "For serious builders shipping real products.",
     features: [
       "Unlimited payments",
-      "Any supported LLM",
+
       "Unlimited UPI IDs",
       "More alert sources (coming soon)",
       "Webhooks + priority support",
