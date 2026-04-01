@@ -13,7 +13,7 @@ const plans = [
     description: "For indie hackers testing the waters.",
     features: [
       "100 verifications/month",
-      "Gemini Flash (free tier LLM)",
+      "Any supported LLM",
       "1 UPI ID",
       "Gmail verification source",
       "Community support (GitHub)",
@@ -30,7 +30,7 @@ const plans = [
     description: "For serious builders shipping real products.",
     features: [
       "Unlimited verifications",
-      "Any LLM (bring your own key)",
+      "Any supported LLM",
       "Unlimited UPI IDs",
       "Gmail + SMS sources (coming soon)",
       "Priority email support",
@@ -52,7 +52,7 @@ const plans = [
       "1:1 setup call (30 min)",
       "Gmail OAuth configured for you",
       "UPI ID + QR integration done",
-      "Custom LLM tuning for your bank",
+      "LLM configured for your bank format",
       "3 months priority support",
       "Dedicated Telegram/WhatsApp",
     ],
@@ -146,30 +146,16 @@ export function PricingCta() {
             ))}
           </div>
 
-          {/* LLM cost note */}
+          {/* Supported LLMs note */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={pricingInView ? { opacity: 1 } : { opacity: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="mt-8 p-6 rounded-xl border border-border bg-surface-raised"
           >
-            <p className="text-[13px] text-muted mb-3 font-medium">What about LLM costs?</p>
-            <div className="grid sm:grid-cols-3 gap-4 text-[12px] font-mono text-muted">
-              <div>
-                <span className="text-accent-green font-semibold">Gemini Flash</span> (default, free tier)
-                <br />~$0.0001 per verification
-              </div>
-              <div>
-                <span className="text-foreground/70">GPT-4o-mini</span> (bring your key)
-                <br />~$0.001 per verification
-              </div>
-              <div>
-                <span className="text-foreground/70">Claude Sonnet</span> (bring your key)
-                <br />~$0.003 per verification
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-light mt-3">
-              Free plan includes Gemini Flash at no cost. Pro plan: bring your own API key for any model.
+            <p className="text-[13px] text-muted mb-2 font-medium">Supported LLMs</p>
+            <p className="text-[12px] text-muted-light">
+              Works with OpenAI, Anthropic, Google Gemini, and any LangChain-compatible provider. Bring your own API key — verification costs are between $0.0001 and $0.007 per transaction depending on the model.
             </p>
           </motion.div>
         </div>
