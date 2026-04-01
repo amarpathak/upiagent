@@ -50,13 +50,13 @@ export function PricingCta() {
   return (
     <>
       {/* ── Pricing ──────────────────────────────────────── */}
-      <section id="pricing" ref={pricingRef} className="border-t border-border pt-16 px-8 pb-20">
+      <section id="pricing" ref={pricingRef} className="border-t border-border pt-10 px-8 pb-12">
         <div className="max-w-[1100px] mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={pricingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="text-center mb-12"
+            className="text-center mb-8"
           >
             <p className="text-[11px] text-muted-light tracking-[2px] uppercase mb-3">Pricing</p>
             <h2 className="font-serif text-[36px] font-normal tracking-tight mb-3">
@@ -141,7 +141,7 @@ export function PricingCta() {
       </section>
 
       {/* ── Final CTA ────────────────────────────────────── */}
-      <div ref={ctaRef} className="relative overflow-hidden px-8 py-24">
+      <div ref={ctaRef} className="relative overflow-hidden px-8 py-16">
         <motion.div
           initial={{ opacity: 0.3 }}
           animate={ctaInView ? { opacity: 1 } : { opacity: 0.3 }}

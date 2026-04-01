@@ -124,7 +124,7 @@ export function TrustStats() {
   return (
     <div ref={ref} className="border-t border-border">
       {/* Trust bar */}
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 py-6">
         <motion.p
           initial={{ opacity: 0 }}
           animate={inView ? { opacity: 1 } : {}}
@@ -151,14 +151,14 @@ export function TrustStats() {
 
       {/* Stats row */}
       <div className="border-t border-border">
-        <div className="max-w-5xl mx-auto px-6 py-12 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
           {STATS.map((stat, i) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 16 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.45, delay: 0.3 + i * 0.12 }}
-              className="flex flex-col items-center text-center gap-2 py-8 sm:py-0 sm:px-8"
+              className="flex flex-col items-center text-center gap-2 py-4 sm:py-0 sm:px-8"
             >
               <AnimatedNumber
                 targetDisplay={stat.display}

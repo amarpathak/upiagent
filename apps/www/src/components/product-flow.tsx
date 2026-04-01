@@ -31,7 +31,7 @@ export function ProductFlow() {
   const inView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section className="relative py-24 px-6 overflow-hidden">
+    <section className="relative py-10 px-6 overflow-hidden">
       {/* Mesh gradient background */}
       <div
         aria-hidden

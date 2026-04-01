@@ -4,7 +4,7 @@ export function FooterNew() {
   return (
     <footer className="bg-surface-raised border-t border-border relative overflow-hidden">
       {/* Giant wordmark */}
-      <div className="relative px-6 pt-16 pb-0 select-none pointer-events-none" aria-hidden="true">
+      <div className="relative px-6 pt-10 pb-0 select-none pointer-events-none" aria-hidden="true">
         <div className="max-w-5xl mx-auto">
           <span className="block font-mono font-bold text-[clamp(4rem,15vw,11rem)] leading-[0.85] tracking-[-0.06em] text-foreground/[0.04]">
             upi

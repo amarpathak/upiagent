@@ -35,7 +35,7 @@ export function HowItWorks() {
   const inView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="how" className="py-24 px-6">
+    <section id="how" className="py-12 px-6">
       <div className="max-w-5xl mx-auto">
         {/* Section label */}
         <motion.p
