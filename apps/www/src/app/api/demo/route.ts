@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+// apps/www/src/app/api/demo/route.ts
+import { NextResponse, after } from "next/server";
 import { createPayment } from "@upiagent/core";
+import { runDemoVerification } from "@/lib/demo-verify";
 
-// ── Rate limiting (5 req/min per IP, 50/min global) ─────
 const RATE_WINDOW_MS = 60_000;
 const PER_IP_MAX = 5;
 const GLOBAL_MAX = 50;
@@ -10,8 +11,6 @@ const globalHits = { count: 0, resetAt: Date.now() + RATE_WINDOW_MS };
 
 function isDemoRateLimited(ip: string): boolean {
   const now = Date.now();
-
-  // Global limit
   if (now > globalHits.resetAt) {
     globalHits.count = 0;
     globalHits.resetAt = now + RATE_WINDOW_MS;
@@ -19,7 +18,6 @@ function isDemoRateLimited(ip: string): boolean {
   globalHits.count++;
   if (globalHits.count > GLOBAL_MAX) return true;
 
-  // Per-IP limit
   const entry = ipHits.get(ip);
   if (!entry || now > entry.resetAt) {
     ipHits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
@@ -63,6 +61,11 @@ export async function POST(req: Request) {
       transactionId: `TXN_DEMO_${Date.now()}`,
     },
   );
+
+  // Trigger background verification — runs after response is sent
+  after(async () => {
+    await runDemoVerification(payment.transactionId, payment.amount);
+  });
 
   return NextResponse.json({
     qrDataUrl: payment.qrDataUrl,
