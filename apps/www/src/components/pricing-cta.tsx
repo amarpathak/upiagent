@@ -12,7 +12,7 @@ const plans = [
     period: "forever",
     description: "For indie hackers testing the waters.",
     features: [
-      "100 verifications/month",
+      "100 payments/month",
       "Any supported LLM",
       "1 UPI ID",
       "Gmail verification source",
@@ -29,7 +29,7 @@ const plans = [
     period: "/month",
     description: "For serious builders shipping real products.",
     features: [
-      "Unlimited verifications",
+      "Unlimited payments",
       "Any supported LLM",
       "Unlimited UPI IDs",
       "More alert sources (coming soon)",
