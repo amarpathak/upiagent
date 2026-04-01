@@ -39,24 +39,6 @@ const plans = [
     ctaHref: `${DASHBOARD_URL}/signup?plan=pro`,
     highlight: true,
   },
-  {
-    name: "Setup & Support",
-    price: "₹4,999",
-    period: "one-time",
-    description: "We set it up for you. White-glove onboarding.",
-    features: [
-      "Everything in Pro",
-      "1:1 setup call (30 min)",
-      "Gmail OAuth configured for you",
-      "UPI ID + QR integration done",
-      "LLM configured for your bank format",
-      "3 months priority support",
-      "Dedicated Telegram/WhatsApp",
-    ],
-    cta: "Book a call",
-    ctaHref: "https://cal.com/amarpathak/upiagent-setup",
-    highlight: false,
-  },
 ];
 
 export function PricingCta() {
@@ -90,7 +72,7 @@ export function PricingCta() {
           </motion.div>
 
           {/* Plan cards */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-6 max-w-[720px] mx-auto">
             {plans.map((plan, i) => (
               <motion.div
                 key={plan.name}
