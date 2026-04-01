@@ -84,7 +84,7 @@ export class LlmBudgetExceededError extends UpiAgentError {
   }
 }
 
-/** Invalid configuration provided to UpiAgent */
+/** Invalid configuration provided to @upiagent/core */
 export class ConfigError extends UpiAgentError {
   constructor(message: string) {
     super(message, "CONFIG_ERROR");
