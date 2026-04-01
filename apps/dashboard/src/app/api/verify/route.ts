@@ -5,8 +5,11 @@ import {
   decrypt,
   isEncrypted,
   type LlmProvider,
+  WebhookSender,
+  type WebhookPayload,
 } from "@upiagent/core";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
+import { randomUUID } from "crypto";
 
 // UUID v4 format validation (M3)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -39,6 +42,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
+
+const webhookSender = new WebhookSender();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
@@ -76,10 +81,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid paymentId format" }, { status: 400 });
   }
 
-  // Get payment + merchant
+  // Get payment + merchant (include webhook columns for delivery after verification)
   const { data: payment } = await supabase
     .from("payments")
-    .select("*, merchants(*)")
+    .select("*, merchants(*, webhook_url, webhook_secret)")
     .eq("id", paymentId)
     .single();
 
@@ -232,6 +237,31 @@ export async function POST(req: Request) {
           status: "already_verified",
           message: "Payment was already verified by another request",
         });
+      }
+
+      // Fire-and-forget webhook delivery — does not block the response
+      if (merchant.webhook_url && merchant.webhook_secret) {
+        const payload: WebhookPayload = {
+          event: "payment.verified",
+          timestamp: new Date().toISOString(),
+          deliveryId: `d_${randomUUID()}`,
+          data: {
+            paymentId,
+            amount: result.payment!.amount,
+            currency: "INR",
+            status: "verified",
+            upiReferenceId: result.payment!.upiReferenceId,
+            senderName: result.payment!.senderName,
+            confidence: result.confidence,
+            verifiedAt: new Date().toISOString(),
+          },
+        };
+
+        webhookSender.send(merchant.webhook_url, merchant.webhook_secret, payload)
+          .then((dr) => {
+            if (!dr.delivered) console.error(`[webhook] Failed to deliver to ${merchant.webhook_url}:`, dr.error);
+          })
+          .catch((err) => console.error("[webhook] Error:", err));
       }
 
       return NextResponse.json({
