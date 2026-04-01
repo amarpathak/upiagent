@@ -29,7 +29,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 // ── Prompt injection sanitization ────────────────────────
 // These patterns detect common LLM prompt injection attempts in email content.
 // Applied before interpolation into the prompt template.
-const INJECTION_PATTERNS = /ignore\s+(all\s+)?previous|return\s+this|you\s+are\s+(a|an|now)|system\s*:|assistant\s*:|<\|im_start\|>|<\|im_end\|>|\bpretend\b|\bact\s+as\b|\brole\s*play\b|disregard\s+(the\s+)?(above|previous)|new\s+(task|instruction)|\boverride\b|\bforget\s+everything\b|\byou\s+must\b|\bdo\s+not\s+extract\b/gi;
+const INJECTION_PATTERNS = /ign[\u043E\u006F]re\s+(all\s+)?previous|return\s+this|you\s+are\s+(a|an|now)|system\s*:|assistant\s*:|<\|im_start\|>|<\|im_end\|>|\bpretend\b|\bact\s+as\b|\brole\s*play\b|disregard\s+(the\s+)?(above|previous)|disregard\s+(all|my)\s*(instructions?|rules?|context)?|new\s+(task|instruction)|\boverride\b|\bbypass\b|\bforget\s+everything\b|\byou\s+must\b|\bdo\s+not\s+extract\b/gi;
 const JSON_LIKE_PATTERN = /\{[^}]*"[^"]*"\s*:/g;
 
 const MAX_SUBJECT_LENGTH = 200;
