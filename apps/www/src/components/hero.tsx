@@ -30,21 +30,20 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.15 }}
           className="font-serif text-[clamp(2rem,7vw,54px)] font-normal leading-[1.1] tracking-[-1.5px] mb-5"
         >
-          Stop paying{" "}
+          UPI is free.{" "}
           <span className="relative inline-block">
-            <span className="text-muted-light">gateway fees.</span>
+            <span className="text-muted-light">Verifying payments</span>
             <span
               className="absolute left-[-4px] right-[-4px] top-[52%] h-[3px] rounded-sm bg-gradient-to-r from-red-400 to-strike-red origin-left"
               style={{ animation: "strike-in 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.6s both" }}
             />
           </span>
           <br />
-          Start{" "}
           <span
             className="italic bg-gradient-to-r from-accent-green via-accent-blue to-accent-purple bg-clip-text text-transparent bg-[length:200%_200%]"
             style={{ animation: "gradient-shift 4s ease-in-out infinite" }}
           >
-            keeping everything.
+            shouldn&apos;t cost 2%.
           </span>
         </motion.h1>
 
@@ -55,8 +54,8 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="text-[16px] text-muted leading-[1.7] max-w-[480px] mx-auto mb-8"
         >
-          Generate a QR. Customer pays with <strong className="text-foreground/70 font-medium">any UPI app</strong>.
-          AI verifies in seconds. Money lands in <strong className="text-foreground/70 font-medium">your bank</strong> — not ours.
+          Open-source UPI payment verification. Generate a QR, customer pays with <strong className="text-foreground/70 font-medium">any UPI app</strong>,
+          AI confirms the transaction. Money goes straight to <strong className="text-foreground/70 font-medium">your bank</strong>. No gateway. No middleman.
         </motion.p>
 
         {/* CTAs */}
