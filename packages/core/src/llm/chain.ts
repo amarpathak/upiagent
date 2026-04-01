@@ -108,7 +108,7 @@ export function createPaymentExtractionChain(
   // This is how CostTracker hooks into the chain — it's not possible via
   // withStructuredOutput() directly since that doesn't expose token metadata.
   const modelWithCallbacks = options?.callbacks
-    ? model.bind({ callbacks: options.callbacks })
+    ? (model as any).bind({ callbacks: options.callbacks }) as typeof model
     : model;
 
   // .withStructuredOutput() tells LangChain:
@@ -168,5 +168,5 @@ export async function parsePaymentEmail(
   // At this point, `result` is already validated by Zod.
   // If the LLM returned something that didn't match the schema,
   // .invoke() would have thrown an error (which the caller handles).
-  return result;
+  return result as ParsedPayment;
 }

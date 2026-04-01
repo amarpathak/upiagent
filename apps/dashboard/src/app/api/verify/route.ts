@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { google } from "googleapis";
-import { decrypt, isEncrypted, parsePaymentEmail, type LlmConfig, type ParsedPayment } from "@upiagent/core";
+import {
+  fetchAndVerifyPayment,
+  decrypt,
+  isEncrypted,
+  type LlmProvider,
+} from "@upiagent/core";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 
 // UUID v4 format validation (M3)
@@ -37,49 +41,6 @@ const supabase = createClient(
 );
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function decodeBase64Url(data: string): string {
-  if (!data) return "";
-  return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
-}
-
-function extractBody(payload: { mimeType?: string | null; body?: { data?: string | null } | null; parts?: Array<{ mimeType?: string | null; body?: { data?: string | null } | null }> | null }): string {
-  if (payload.mimeType === "text/plain" && payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
-  }
-  if (payload.parts) {
-    for (const part of payload.parts) {
-      if (part.mimeType === "text/plain" && part.body?.data) {
-        return decodeBase64Url(part.body.data);
-      }
-    }
-    for (const part of payload.parts) {
-      if (part.mimeType === "text/html" && part.body?.data) {
-        return stripHtml(decodeBase64Url(part.body.data));
-      }
-    }
-  }
-  if (payload.mimeType === "text/html" && payload.body?.data) {
-    return stripHtml(decodeBase64Url(payload.body.data));
-  }
-  return "";
-}
 
 /**
  * POST /api/verify
@@ -189,173 +150,111 @@ export async function POST(req: Request) {
     ? decrypt(merchant.gmail_refresh_token, encKey)
     : merchant.gmail_refresh_token;
 
-  // Set up Gmail client
-  const oauth2Client = new google.auth.OAuth2(
-    merchant.gmail_client_id,
-    clientSecret,
-  );
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
-  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  // Decrypt LLM API key if present
+  const llmKeyEncrypted = merchant.llm_api_key && isEncrypted(merchant.llm_api_key);
+  if (!encKey && llmKeyEncrypted) {
+    console.error("[verify] Server misconfiguration: encrypted llm_api_key but CREDENTIALS_ENCRYPTION_KEY is not set");
+    return NextResponse.json(
+      { error: "Server misconfiguration: encryption key not set" },
+      { status: 500 },
+    );
+  }
+  const rawLlmKey = encKey && llmKeyEncrypted
+    ? decrypt(merchant.llm_api_key, encKey)
+    : merchant.llm_api_key;
+  const llmApiKey = rawLlmKey || GEMINI_API_KEY;
+  if (!llmApiKey) {
+    return NextResponse.json({ verified: false, status: "pending", message: "No LLM API key configured" });
+  }
 
-  // H2: Search for recent bank alerts — capped at 60 min for all requests
-  const MAX_LOOKBACK_MS = 60 * 60 * 1000;
-  const lookbackMs = Math.min(
-    force ? 60 * 60 * 1000 : 10 * 60 * 1000,
-    MAX_LOOKBACK_MS,
-  );
-  const afterTimestamp = Math.floor((Date.now() - lookbackMs) / 1000);
-  const query = `from:alerts@hdfcbank.bank.in after:${afterTimestamp}`;
+  // H2: Lookback capped at 60 min for all requests
+  const lookbackMinutes = Math.min(force ? 60 : 10, 60);
+  const expectedAmount = Number(payment.amount_with_paisa ?? payment.amount);
 
   try {
-    const listRes = await gmail.users.messages.list({
-      userId: "me",
-      q: query,
-      maxResults: 5,
+    // ── Core library handles: Gmail fetch → pre-LLM gate → rate limit →
+    //    LLM parse → 5-layer security validation (format, bank source,
+    //    amount, time window, dedup)
+    const result = await fetchAndVerifyPayment({
+      gmail: {
+        clientId: merchant.gmail_client_id,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken,
+      },
+      llm: {
+        provider: (merchant.llm_provider ?? "gemini") as LlmProvider,
+        model: merchant.llm_model ?? "gemini-2.0-flash",
+        apiKey: llmApiKey,
+      },
+      expected: {
+        amount: expectedAmount,
+        timeWindowMinutes: 30,
+      },
+      lookbackMinutes,
+      maxEmails: 10,
     });
 
-    const messageIds = listRes.data.messages ?? [];
+    // Record evidence regardless of outcome
+    await supabase.from("verification_evidence").insert({
+      payment_id: paymentId,
+      source: "gmail",
+      status: result.verified ? "match" : "no_match",
+      confidence: result.confidence,
+      extracted_amount: result.payment?.amount ?? null,
+      extracted_upi_ref: result.payment?.upiReferenceId ?? null,
+      extracted_sender: result.payment?.senderName ?? null,
+      extracted_bank: result.payment?.bankName ?? null,
+      layer_results: Object.fromEntries(
+        result.layerResults.map((lr) => [lr.layer, lr.passed]),
+      ),
+    });
 
-    if (messageIds.length === 0) {
-      return NextResponse.json({ verified: false, status: "pending", message: "No bank alerts found yet" });
-    }
+    if (result.verified && result.payment) {
+      // VERIFIED! Conditional update to prevent TOCTOU race
+      const { data: updated } = await supabase
+        .from("payments")
+        .update({
+          status: "verified",
+          verification_source: "gmail",
+          overall_confidence: result.confidence,
+          upi_reference_id: result.payment.upiReferenceId,
+          sender_name: result.payment.senderName,
+          bank_name: result.payment.bankName,
+          verified_at: new Date().toISOString(),
+        })
+        .eq("id", paymentId)
+        .eq("status", "pending")
+        .select();
 
-    const expectedAmount = Number(payment.amount_with_paisa ?? payment.amount);
-
-    for (const msg of messageIds) {
-      if (!msg.id) continue;
-
-      const detail = await gmail.users.messages.get({ userId: "me", id: msg.id, format: "full" });
-      const payload = detail.data.payload;
-      if (!payload) continue;
-
-      const body = extractBody(payload);
-      if (!body) continue;
-
-      const headers = payload.headers ?? [];
-      const subject = headers.find((h: { name?: string | null }) => h.name?.toLowerCase() === "subject")?.value ?? "";
-
-      // Parse with core library (Zod-validated structured output via LangChain)
-      const llmKeyEncrypted = merchant.llm_api_key && isEncrypted(merchant.llm_api_key);
-      if (!encKey && llmKeyEncrypted) {
-        console.error("[verify] Server misconfiguration: encrypted llm_api_key but CREDENTIALS_ENCRYPTION_KEY is not set");
-        return NextResponse.json(
-          { error: "Server misconfiguration: encryption key not set" },
-          { status: 500 },
-        );
-      }
-      const rawLlmKey = encKey && llmKeyEncrypted
-        ? decrypt(merchant.llm_api_key, encKey)
-        : merchant.llm_api_key;
-      const geminiApiKey = rawLlmKey || GEMINI_API_KEY;
-      if (!geminiApiKey) {
-        return NextResponse.json({ verified: false, status: "pending", message: "No LLM API key configured" });
-      }
-
-      const llmConfig: LlmConfig = { provider: "gemini", apiKey: geminiApiKey };
-      const fromHeader = headers.find((h: { name?: string | null }) => h.name?.toLowerCase() === "from")?.value ?? "";
-
-      let parsed: ParsedPayment | null;
-      try {
-        parsed = await parsePaymentEmail(
-          { id: msg.id, subject, body, from: fromHeader, receivedAt: new Date() },
-          llmConfig,
-        );
-      } catch {
-        continue;
-      }
-      if (!parsed) continue;
-
-      // Dedup check: has this UPI reference ID already been verified for this merchant?
-      let dedupPassed = true;
-      if (parsed.upiReferenceId) {
-        const { data: existingPayment } = await supabase
-          .from("payments")
-          .select("id")
-          .eq("merchant_id", merchant.id)
-          .eq("upi_reference_id", parsed.upiReferenceId)
-          .eq("status", "verified")
-          .neq("id", paymentId)
-          .limit(1)
-          .maybeSingle();
-        if (existingPayment) {
-          dedupPassed = false;
-        }
-      }
-
-      // Record evidence
-      await supabase.from("verification_evidence").insert({
-        payment_id: paymentId,
-        source: "gmail",
-        status: parsed.isPaymentEmail && Math.abs(parsed.amount - expectedAmount) <= 0.01 && dedupPassed ? "match" : "no_match",
-        confidence: parsed.confidence,
-        extracted_amount: parsed.amount,
-        extracted_upi_ref: parsed.upiReferenceId,
-        extracted_sender: parsed.senderName,
-        extracted_bank: parsed.bankName,
-        layer_results: {
-          format_check: parsed.isPaymentEmail,
-          amount_match: Math.abs(parsed.amount - expectedAmount) <= 0.01,
-          time_window: true,
-          dedup_check: dedupPassed,
-        },
-      });
-
-      if (!dedupPassed) {
-        console.warn("[verify] Duplicate UPI reference ID rejected:", parsed.upiReferenceId);
-        continue;
-      }
-
-      if (!parsed.isPaymentEmail) continue;
-
-      // Core library already validates via Zod schema — confidence, amount, UPI ref format
-      // are guaranteed to be present and correctly typed. Additional sanity check:
-      if (parsed.confidence < 0.5) {
-        console.warn("[verify] Low confidence, skipping email:", { confidence: parsed.confidence, upiRef: parsed.upiReferenceId });
-        continue;
-      }
-
-      // Amount match
-      if (Math.abs(parsed.amount - expectedAmount) <= 0.01) {
-        // VERIFIED! Conditional update to prevent TOCTOU race
-        const { data: updated } = await supabase
-          .from("payments")
-          .update({
-            status: "verified",
-            verification_source: "gmail",
-            overall_confidence: parsed.confidence,
-            upi_reference_id: parsed.upiReferenceId,
-            sender_name: parsed.senderName,
-            bank_name: parsed.bankName,
-            verified_at: new Date().toISOString(),
-          })
-          .eq("id", paymentId)
-          .eq("status", "pending")
-          .select();
-
-        if (!updated || updated.length === 0) {
-          return NextResponse.json({
-            verified: true,
-            status: "already_verified",
-            message: "Payment was already verified by another request",
-          });
-        }
-
+      if (!updated || updated.length === 0) {
         return NextResponse.json({
           verified: true,
-          status: "verified",
-          payment: {
-            amount: parsed.amount,
-            upiReferenceId: parsed.upiReferenceId,
-            senderName: parsed.senderName,
-            bankName: parsed.bankName,
-            confidence: parsed.confidence,
-          },
+          status: "already_verified",
+          message: "Payment was already verified by another request",
         });
       }
+
+      return NextResponse.json({
+        verified: true,
+        status: "verified",
+        payment: {
+          amount: result.payment.amount,
+          upiReferenceId: result.payment.upiReferenceId,
+          senderName: result.payment.senderName,
+          bankName: result.payment.bankName,
+          confidence: result.confidence,
+        },
+      });
     }
 
-    return NextResponse.json({ verified: false, status: "pending", message: `No matching ₹${expectedAmount} credit found` });
+    // Not verified — return pending with reason
+    return NextResponse.json({
+      verified: false,
+      status: "pending",
+      message: result.failureDetails ?? `No matching ₹${expectedAmount} credit found`,
+    });
   } catch (error) {
+    console.error("[verify] Error during payment verification:", error);
     return NextResponse.json({
       verified: false,
       status: "pending",

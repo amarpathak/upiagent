@@ -14,10 +14,10 @@ import type { EmailMessage, GmailCredentials } from "./gmail/types.js";
 import type { LlmConfig } from "./llm/types.js";
 import type { ParsedPayment } from "./llm/schema.js";
 import type {
-  DedupStore,
   VerificationResult,
   SecurityConfig,
 } from "./security/types.js";
+import type { DedupStore } from "./security/dedup.js";
 import { parsePaymentEmail } from "./llm/chain.js";
 import { SecurityValidator } from "./security/validator.js";
 import { InMemoryDedupStore } from "./security/dedup.js";
@@ -144,7 +144,7 @@ export async function verifyPayment(
 
   // ── Step 3: LLM parsing ───────────────────────────────────────
   const callbacks = options.costTracker
-    ? { callbacks: [{ handleLLMEnd: options.costTracker.handleLLMEnd.bind(options.costTracker) }] }
+    ? { callbacks: [options.costTracker.asLangChainHandler()] }
     : undefined;
 
   const parsed = await parsePaymentEmail(email, options.llm, callbacks);
