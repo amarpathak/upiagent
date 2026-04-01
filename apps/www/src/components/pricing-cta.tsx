@@ -33,6 +33,7 @@ const plans = [
       "Any supported LLM",
       "Unlimited UPI IDs",
       "SMS, WhatsApp, notifications (coming soon)",
+      "Webhooks",
       "Priority support",
     ],
     cta: "Start building",
