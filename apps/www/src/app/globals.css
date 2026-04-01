@@ -1,46 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050508;
-  --foreground: #e8e8ed;
-  --muted: #6e6e80;
-  --border: #1e1e2e;
-  --accent: #5b8def;
-  --accent-dim: #4a7ae0;
-  --cyan: #5ce5d5;
-  --surface: #0a0a10;
-  --surface-raised: #111118;
-  --glow: rgba(91, 141, 239, 0.08);
+  --background: #fdfcfa;
+  --foreground: #1a1a1a;
+  --muted: #888;
+  --muted-light: #ccc;
+  --border: #f0ece4;
+  --border-hover: #e5e2da;
+  --accent-green: #059669;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --surface: #fff;
+  --surface-raised: #f8f7f4;
+  --strike-red: #ef4444;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
   --color-border: var(--border);
-  --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
-  --color-cyan: var(--cyan);
+  --color-border-hover: var(--border-hover);
+  --color-accent-green: var(--accent-green);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
-  --color-glow: var(--glow);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-strike-red: var(--strike-red);
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
-/* Selection */
 ::selection {
-  background: var(--accent);
-  color: var(--background);
+  background: var(--accent-green);
+  color: #fff;
 }
 
-/* Terminal cursor blink */
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
@@ -49,7 +52,32 @@ body {
   animation: blink 1s step-end infinite;
 }
 
-/* Smooth reveal */
+@keyframes strike-in {
+  from { transform: scaleX(0) rotate(-1deg); }
+  to { transform: scaleX(1) rotate(-1deg); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes orb-float-1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(30px, -20px); }
+  66% { transform: translate(-20px, -10px); }
+}
+@keyframes orb-float-2 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-25px, 15px); }
+  66% { transform: translate(15px, 25px); }
+}
+@keyframes orb-float-3 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(20px, 20px); }
+  66% { transform: translate(-30px, -15px); }
+}
+
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -58,40 +86,6 @@ body {
   animation: fadeInUp 0.3s ease-out both;
 }
 
-/* Stagger children */
-@keyframes stagger-in {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Pulse ring for flow nodes */
-@keyframes pulse-ring {
-  0% { transform: scale(0.85); opacity: 0; }
-  50% { opacity: 0.2; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-/* Beam — vertical light streak */
-@keyframes beam {
-  0% { transform: translateY(-200%); opacity: 0; }
-  20% { opacity: 0.6; }
-  80% { opacity: 0.6; }
-  100% { transform: translateY(200%); opacity: 0; }
-}
-
-/* Gradient border shimmer */
-@keyframes shimmer {
-  0% { background-position: 200% 50%; }
-  100% { background-position: -200% 50%; }
-}
-
-/* Orbit */
-@keyframes orbit {
-  from { transform: rotate(0deg) translateX(var(--radius)) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg); }
-}
-
-/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
