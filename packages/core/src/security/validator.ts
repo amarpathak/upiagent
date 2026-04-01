@@ -21,6 +21,7 @@ import type {
 } from "./types.js";
 import type { DedupStore } from "./dedup.js";
 import { InMemoryDedupStore } from "./dedup.js";
+import { isKnownBankEmail } from "./bank-registry.js";
 
 export class SecurityValidator {
   private config: Required<SecurityConfig>;
@@ -49,6 +50,8 @@ export class SecurityValidator {
     request: VerificationRequest,
     /** Email's received timestamp from Gmail — used as fallback when LLM can't extract exact time */
     emailReceivedAt?: Date,
+    /** Optional email metadata — used for bank source validation */
+    emailMeta?: { from?: string },
   ): Promise<VerificationResult> {
     const layerResults: VerificationResult["layerResults"] = [];
 
@@ -58,6 +61,14 @@ export class SecurityValidator {
     layerResults.push({ layer: "format", ...formatResult });
     if (!formatResult.passed) {
       return this.buildResult(false, payment, layerResults, formatResult);
+    }
+
+    // ── Layer 1.5: Bank Source Validation ──────────────────────
+    // "Is this from a known bank? If not, require higher confidence."
+    const bankSourceResult = this.validateBankSource(payment, emailMeta?.from);
+    layerResults.push({ layer: "bank_source", ...bankSourceResult });
+    if (!bankSourceResult.passed) {
+      return this.buildResult(false, payment, layerResults, bankSourceResult);
     }
 
     // ── Layer 2: Amount Matching ────────────────────────────────
@@ -88,6 +99,49 @@ export class SecurityValidator {
     await this.dedupStore.add(payment.upiReferenceId);
 
     return this.buildResult(true, payment, layerResults);
+  }
+
+  /**
+   * Layer 1.5: Bank Source Validation
+   *
+   * Checks whether the email sender is a known bank address.
+   *
+   * If the sender is a recognized bank (from the registry), we trust
+   * the existing 0.5 confidence threshold from Layer 1.
+   *
+   * If the sender is unknown, we require a higher confidence of 0.8.
+   * This guards against spam or spoofed emails that happen to look like
+   * payment notifications — unknown senders need to earn their way through
+   * with a much stronger LLM signal.
+   *
+   * If no fromAddress is provided, the layer is skipped (backwards compat).
+   */
+  private validateBankSource(
+    payment: ParsedPayment,
+    fromAddress?: string,
+  ): ValidationResult {
+    if (!fromAddress) {
+      return { passed: true, details: "No sender address provided, skipping bank source check" };
+    }
+
+    const bankResult = isKnownBankEmail(fromAddress);
+
+    if (bankResult.known) {
+      return { passed: true, details: `Known bank: ${bankResult.bankName}` };
+    }
+
+    if (payment.confidence < 0.8) {
+      return {
+        passed: false,
+        reason: "LOW_CONFIDENCE",
+        details: `Confidence ${payment.confidence} below 0.8 threshold for unknown sender "${fromAddress}"`,
+      };
+    }
+
+    return {
+      passed: true,
+      details: `Unknown sender "${fromAddress}" accepted with high confidence ${payment.confidence}`,
+    };
   }
 
   /**
