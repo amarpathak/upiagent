@@ -77,3 +77,12 @@ export { setupGmailAuth, type GmailAuthResult, type GmailAuthSetupOptions } from
 
 // Crypto — encrypt/decrypt sensitive credentials
 export { encrypt, decrypt, isEncrypted, generateKey } from "./utils/crypto.js";
+
+// Webhook — HMAC-signed webhook delivery
+export { WebhookSender, signWebhookPayload, verifyWebhookSignature } from "./webhook/index.js";
+export type {
+  WebhookPayload,
+  WebhookEvent,
+  WebhookDeliveryResult,
+  WebhookConfig,
+} from "./webhook/index.js";
