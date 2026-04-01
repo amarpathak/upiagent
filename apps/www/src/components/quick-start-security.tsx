@@ -2,103 +2,90 @@
 
 import { useRef } from "react";
 import { motion, useInView } from "@/components/motion-client";
-import { CodeBlock } from "./code-block";
-import { SecurityLayer } from "./security-layer";
 
-const installCode = `npm install upiagent`;
-
-const quickStartCode = `import { UpiAgent } from "upiagent"
-
-const agent = new UpiAgent({
-  merchant: { upiId: "you@ybl", name: "Your Store" },
-  gmail: { clientId: "...", clientSecret: "...", refreshToken: "..." },
-  llm: { provider: "openai", apiKey: process.env.OPENAI_KEY },
-})
-
-const payment = await agent.createPayment({ amount: 499, note: "Order #1" })
-const result  = await agent.verifyPayment({ expectedAmount: 499 })
-
-result.verified          // true
-result.confidence        // 0.95`;
-
-const securityLayers = [
+const painPoints = [
   {
-    num: "01",
-    name: "Format Validation",
-    desc: "Zod schema catches LLM hallucinations before they enter your system.",
+    gateway: "Business registration & KYC docs",
+    upiagent: "npm install and go",
   },
   {
-    num: "02",
-    name: "Amount Matching",
-    desc: "Exact match to the paisa. No fuzzy matching on financial data.",
+    gateway: "2-3% fee on every transaction",
+    upiagent: "Zero transaction fees",
   },
   {
-    num: "03",
-    name: "Time Window",
-    desc: "Configurable window blocks replay attacks from stale emails.",
+    gateway: "Days to weeks for approval",
+    upiagent: "Start accepting payments in 5 minutes",
   },
   {
-    num: "04",
-    name: "Duplicate Detection",
-    desc: "UPI reference ID tracking prevents double-crediting.",
+    gateway: "Money settles in 2-3 business days",
+    upiagent: "Money lands in your bank instantly",
+  },
+  {
+    gateway: "Vendor lock-in, proprietary SDKs",
+    upiagent: "Open source, MIT licensed",
   },
 ];
 
 export function QuickStartSecurity() {
-  const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="quickstart" ref={ref} className="border-t border-border pt-16 px-6 pb-20">
-      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
-        {/* LEFT: For developers */}
+    <section id="quickstart" className="px-8 py-16" ref={ref}>
+      <div className="max-w-[800px] mx-auto">
+        <div className="border-t border-border pt-16" />
+
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
         >
-          <span className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] mb-4 block">
-            For developers
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-medium tracking-tight mb-8">
-            <em className="not-italic bg-gradient-to-r from-foreground to-foreground/50 bg-clip-text text-transparent">
-              Five minutes to first payment.
+          <p className="text-[11px] text-muted-light tracking-[2px] uppercase mb-3">Why upiagent</p>
+          <h2 className="font-serif text-[36px] font-normal tracking-tight">
+            No paperwork.{" "}
+            <em className="italic bg-gradient-to-r from-accent-green to-accent-blue bg-clip-text text-transparent">
+              No permission needed.
             </em>
           </h2>
-          <div className="space-y-4">
-            <CodeBlock code={installCode} lang="bash" filename="terminal" />
-            <CodeBlock code={quickStartCode} lang="typescript" filename="index.ts" />
-          </div>
         </motion.div>
 
-        {/* RIGHT: 4-layer verification */}
+        <div className="space-y-3">
+          {painPoints.map((point, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 12 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.4, delay: i * 0.08 }}
+              className="grid grid-cols-2 gap-4 items-center"
+            >
+              <div className="flex items-center gap-3 py-4 px-5 rounded-xl bg-strike-red/[0.03] border border-strike-red/10">
+                <svg className="w-4 h-4 text-strike-red/50 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+                <span className="text-[13px] text-muted">{point.gateway}</span>
+              </div>
+
+              <div className="flex items-center gap-3 py-4 px-5 rounded-xl bg-accent-green/[0.03] border border-accent-green/10">
+                <svg className="w-4 h-4 text-accent-green shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 8.5l3 3 7-7" />
+                </svg>
+                <span className="text-[13px] text-foreground/80 font-medium">{point.upiagent}</span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="mt-10 text-center"
         >
-          <span className="font-mono text-[10px] text-muted uppercase tracking-[0.2em] mb-4 block">
-            4-layer verification
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-medium tracking-tight mb-8 text-foreground">
-            Every payment verified four ways.
-          </h2>
-          <div className="space-y-3">
-            {securityLayers.map((layer, i) => (
-              <motion.div
-                key={layer.num}
-                initial={{ opacity: 0, y: 10 }}
-                animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-                transition={{
-                  duration: 0.5,
-                  ease: "easeOut",
-                  delay: 0.2 + i * 0.1,
-                }}
-              >
-                <SecurityLayer num={layer.num} name={layer.name} desc={layer.desc} />
-              </motion.div>
-            ))}
-          </div>
+          <p className="font-mono text-[13px] text-muted mb-2">Get started in one line:</p>
+          <code className="inline-block px-6 py-3 rounded-xl bg-foreground text-background font-mono text-[14px]">
+            npm install upiagent
+          </code>
         </motion.div>
       </div>
     </section>
