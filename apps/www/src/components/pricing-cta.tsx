@@ -25,7 +25,7 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "₹999",
+    price: "₹499",
     period: "/month",
     description: "For serious builders shipping real products.",
     features: [
