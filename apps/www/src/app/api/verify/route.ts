@@ -10,21 +10,52 @@ const supabase = createClient(
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
-// ── Rate limiter (mitigation #4) ──────────────────────────
-// 10 requests per IP per minute
-const RATE_LIMIT = 10;
+// ── H1: Demo merchant safeguard ──────────────────────────
+const DEMO_UPI_ID = "amarpathakhdfc@ybl";
+
+// ── H2: Lookback cap ────────────────────────────────────
+const MAX_LOOKBACK_MINUTES = 10;
+
+// ── H3: Dedup — in-memory Set of verified UPI reference IDs (30 min TTL) ──
+const DEDUP_TTL_MS = 30 * 60 * 1000;
+const verifiedRefs = new Map<string, number>(); // refId -> expiresAt
+
+function isDuplicateRef(refId: string): boolean {
+  const now = Date.now();
+  const expiresAt = verifiedRefs.get(refId);
+  return !!(expiresAt && now < expiresAt);
+}
+
+function markRefUsed(refId: string): void {
+  verifiedRefs.set(refId, Date.now() + DEDUP_TTL_MS);
+}
+
+// ── H4: Rate limiter — 3/min per IP, 30/min global ─────
+const PER_IP_RATE_LIMIT = 3;
+const GLOBAL_RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
 const hits = new Map<string, { count: number; resetAt: number }>();
+let globalHits = { count: 0, resetAt: Date.now() + RATE_WINDOW_MS };
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+
+  // Global rate limit
+  if (now > globalHits.resetAt) {
+    globalHits = { count: 1, resetAt: now + RATE_WINDOW_MS };
+  } else {
+    globalHits.count++;
+    if (globalHits.count > GLOBAL_RATE_LIMIT) return true;
+  }
+
+  // Per-IP rate limit
   const entry = hits.get(ip);
   if (!entry || now > entry.resetAt) {
     hits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
     return false;
   }
   entry.count++;
-  return entry.count > RATE_LIMIT;
+  return entry.count > PER_IP_RATE_LIMIT;
 }
 
 // Cleanup stale entries every 5 minutes
@@ -32,6 +63,9 @@ setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of hits) {
     if (now > entry.resetAt) hits.delete(ip);
+  }
+  for (const [refId, expiresAt] of verifiedRefs) {
+    if (now > expiresAt) verifiedRefs.delete(refId);
   }
 }, 300_000);
 
@@ -138,22 +172,26 @@ function extractBody(payload: Payload): string {
  * Rate-limited. Credentials decrypted at runtime.
  */
 export async function POST(req: Request) {
-  // Rate limit by IP
+  // H4: Rate limit by IP + global
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: "Rate limited. Try again in a minute." }, { status: 429 });
   }
 
-  const { expectedAmount, lookbackMinutes = 5 } = await req.json();
+  const { expectedAmount, lookbackMinutes: rawLookback = 5 } = await req.json();
+
+  // H2: Cap lookback to MAX_LOOKBACK_MINUTES
+  const lookbackMinutes = Math.min(Math.max(rawLookback, 1), MAX_LOOKBACK_MINUTES);
 
   if (!expectedAmount || expectedAmount > 3) {
     return NextResponse.json({ error: "Demo: amount must be ₹1–3" }, { status: 400 });
   }
 
-  // Get demo merchant
+  // Get demo merchant — filter by demo UPI ID (H1)
   const { data: merchant } = await supabase
     .from("merchants")
-    .select("*")
+    .select("id, upi_id, name, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_api_key")
+    .eq("upi_id", DEMO_UPI_ID)
     .not("gmail_refresh_token", "is", null)
     .limit(1)
     .single();
@@ -162,12 +200,41 @@ export async function POST(req: Request) {
     return NextResponse.json({ verified: false, message: "Demo merchant not configured" });
   }
 
-  // Decrypt credentials (mitigation #2)
+  // H1: Double-check the merchant UPI ID matches the demo ID
+  if (merchant.upi_id !== DEMO_UPI_ID) {
+    console.error("[verify] Merchant UPI ID mismatch: expected", DEMO_UPI_ID, "got", merchant.upi_id);
+    return NextResponse.json({ error: "Demo endpoint misconfigured" }, { status: 500 });
+  }
+
+  // Decrypt credentials with strict encryption checks
   const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-  const clientSecret = encKey && merchant.gmail_client_secret && isEncrypted(merchant.gmail_client_secret)
+
+  const secretEncrypted = merchant.gmail_client_secret && isEncrypted(merchant.gmail_client_secret);
+  const tokenEncrypted = isEncrypted(merchant.gmail_refresh_token);
+
+  // FAIL HARD: encrypted credentials but no key to decrypt them
+  if (!encKey && (secretEncrypted || tokenEncrypted)) {
+    console.error("[verify] Server misconfiguration: encrypted credentials found but CREDENTIALS_ENCRYPTION_KEY is not set");
+    return NextResponse.json(
+      { error: "Server misconfiguration: encryption key not set" },
+      { status: 500 },
+    );
+  }
+
+  // Backward compat: plaintext credentials with key set (migration period)
+  if (encKey && (!secretEncrypted || !tokenEncrypted)) {
+    console.warn("[verify] WARNING: plaintext credentials detected with encryption key set — credentials should be re-encrypted via Settings");
+  }
+
+  // Dev/testing: plaintext credentials without key
+  if (!encKey && !secretEncrypted && !tokenEncrypted) {
+    console.warn("[verify] WARNING: running with plaintext credentials and no encryption key (dev/testing mode)");
+  }
+
+  const clientSecret = encKey && secretEncrypted
     ? decrypt(merchant.gmail_client_secret, encKey)
     : merchant.gmail_client_secret;
-  const refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+  const refreshToken = encKey && tokenEncrypted
     ? decrypt(merchant.gmail_refresh_token, encKey)
     : merchant.gmail_refresh_token;
 
@@ -207,7 +274,15 @@ export async function POST(req: Request) {
       const headers = payload.headers ?? [];
       const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value ?? "";
 
-      const rawLlmKey = merchant.llm_api_key && encKey && isEncrypted(merchant.llm_api_key)
+      const llmKeyEncrypted = merchant.llm_api_key && isEncrypted(merchant.llm_api_key);
+      if (!encKey && llmKeyEncrypted) {
+        console.error("[verify] Server misconfiguration: encrypted llm_api_key but CREDENTIALS_ENCRYPTION_KEY is not set");
+        return NextResponse.json(
+          { error: "Server misconfiguration: encryption key not set" },
+          { status: 500 },
+        );
+      }
+      const rawLlmKey = encKey && llmKeyEncrypted
         ? decrypt(merchant.llm_api_key, encKey)
         : merchant.llm_api_key;
       const geminiApiKey = rawLlmKey || GEMINI_API_KEY;
@@ -216,10 +291,10 @@ export async function POST(req: Request) {
       }
 
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
           body: JSON.stringify({
             contents: [{
               parts: [{
@@ -250,6 +325,19 @@ export async function POST(req: Request) {
       }
 
       if (Math.abs(parsed.amount - expectedAmount) <= 0.01) {
+        // H3: Check for duplicate UPI reference ID
+        const refId = String(parsed.upiReferenceId);
+        if (isDuplicateRef(refId)) {
+          console.warn("[verify] Duplicate UPI reference ID rejected:", refId);
+          return NextResponse.json(
+            { verified: false, message: "This payment has already been verified" },
+            { status: 409 },
+          );
+        }
+
+        // Mark this reference ID as used
+        markRefUsed(refId);
+
         return NextResponse.json({
           verified: true,
           payment: {
