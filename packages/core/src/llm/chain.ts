@@ -30,6 +30,7 @@ import { paymentExtractionPrompt, sanitizeEmailForLlm } from "./prompts.js";
 import { parsedPaymentSchema, type ParsedPayment } from "./schema.js";
 import type { LlmConfig } from "./types.js";
 import type { EmailMessage } from "../gmail/types.js";
+import { ConfigError } from "../utils/errors.js";
 
 /**
  * Creates the appropriate LLM instance based on the provider config.
@@ -42,27 +43,33 @@ import type { EmailMessage } from "../gmail/types.js";
  * This is the "adapter pattern" — same interface, different implementations.
  */
 function createLlmModel(config: LlmConfig): BaseChatModel {
+  if (!config.model) {
+    throw new ConfigError(
+      'LLM model is required. Examples: "gemini-2.0-flash" (Gemini), "gpt-4o-mini" (OpenAI), "claude-sonnet-4-5-20250514" (Anthropic)'
+    );
+  }
+
   const temperature = config.temperature ?? 0;
 
   switch (config.provider) {
     case "openai":
       return new ChatOpenAI({
         openAIApiKey: config.apiKey,
-        modelName: config.model ?? "gpt-4o-mini",
+        modelName: config.model,
         temperature,
       });
 
     case "anthropic":
       return new ChatAnthropic({
         anthropicApiKey: config.apiKey,
-        modelName: config.model ?? "claude-sonnet-4-5-20250514",
+        modelName: config.model,
         temperature,
       });
 
     case "gemini":
       return new ChatGoogleGenerativeAI({
         apiKey: config.apiKey,
-        model: config.model ?? "gemini-2.5-flash",
+        model: config.model,
         temperature,
       });
 

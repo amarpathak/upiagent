@@ -29,16 +29,14 @@ export interface LlmConfig {
   apiKey: string;
 
   /**
-   * Specific model to use. If not provided, sensible defaults are used:
-   * - OpenAI: "gpt-4o-mini" (fast, cheap, great at structured extraction)
-   * - Anthropic: "claude-sonnet-4-5-20250514" (excellent instruction following)
+   * Specific model to use (required).
+   * Examples: "gemini-2.0-flash" (Gemini), "gpt-4o-mini" (OpenAI),
+   * "claude-sonnet-4-5-20250514" (Anthropic)
    *
-   * Why these defaults? For payment extraction, you don't need the most
-   * powerful model. GPT-4o-mini and Claude Sonnet are accurate enough for
-   * structured extraction and much cheaper than their larger siblings.
-   * FDE pattern: Always default to the cheapest model that meets accuracy needs.
+   * Model must be explicitly chosen so consumers control cost, capability,
+   * and version stability. No silent defaults.
    */
-  model?: string;
+  model: string;
 
   /**
    * Temperature controls randomness in LLM output.
