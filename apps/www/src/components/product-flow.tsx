@@ -15,9 +15,9 @@ const steps = [
     desc: "Scan with any UPI app. Money goes straight to your bank.",
   },
   {
-    icon: "📧",
-    label: "Gmail alert",
-    desc: "Bank sends a confirmation email. upiagent reads it via OAuth.",
+    icon: "🔗",
+    label: "Connect sources",
+    desc: "Gmail, SMS, notifications — upiagent reads your bank alerts automatically.",
   },
   {
     icon: "✓",

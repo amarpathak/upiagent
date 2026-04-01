@@ -2,7 +2,7 @@ import { Nav } from "@/components/nav";
 import { Hero } from "@/components/hero";
 import { ProductFlow } from "@/components/product-flow";
 import { TrustStats } from "@/components/trust-stats";
-import { HowItWorks } from "@/components/how-it-works";
+
 import { LiveDemoSection } from "@/components/live-demo-section";
 import { QuickStartSecurity } from "@/components/quick-start-security";
 import { PricingCta } from "@/components/pricing-cta";
@@ -15,7 +15,7 @@ export default function Home() {
       <Hero />
       <ProductFlow />
       <TrustStats />
-      <HowItWorks />
+
       <LiveDemoSection />
       <QuickStartSecurity />
       <PricingCta />
