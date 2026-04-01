@@ -58,7 +58,7 @@ describe("Security Validator", () => {
 
     expect(result.verified).toBe(true);
     expect(result.confidence).toBe(0.95);
-    expect(result.layerResults).toHaveLength(4);
+    expect(result.layerResults).toHaveLength(5);
     expect(result.layerResults.every((l) => l.passed)).toBe(true);
   });
 
@@ -271,7 +271,7 @@ describe("Security Validator", () => {
       const result = await validator.validate(makePayment(), makeRequest());
 
       expect(result.verified).toBe(true);
-      expect(result.layerResults).toHaveLength(4);
+      expect(result.layerResults).toHaveLength(5);
     });
   });
 });
