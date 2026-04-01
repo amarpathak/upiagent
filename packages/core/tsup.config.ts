@@ -3,7 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   // Entry point — tsup starts here and follows all imports
   // Two entry points:
-  // - index.ts → the library (import { UpiAgent } from 'upiagent')
+  // - index.ts → the library (import { verifyPayment } from '@upiagent/core')
   // - cli.ts → the CLI binary (npx upiagent setup)
   entry: ["src/index.ts", "src/setup/cli.ts"],
 
