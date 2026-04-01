@@ -103,15 +103,26 @@ export function LiveDemo() {
     anthropic: "claude-sonnet",
   };
 
-  // Real poll — calls /api/verify which hits Gmail + Gemini
-  const pollVerify = useCallback(async (amt: string, pollNum: number): Promise<VerifyResult | null> => {
+  // Check if webhook result has arrived (lightweight map lookup — no Gmail/LLM)
+  const checkWebhookResult = useCallback(async (paymentTxnId: string, pollNum: number): Promise<VerifyResult | null> => {
     try {
-      const res = await fetch("/api/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expectedAmount: parseFloat(amt), lookbackMinutes: 5 }),
-      });
-      return await res.json();
+      const res = await fetch(`/api/webhook/demo?paymentId=${encodeURIComponent(paymentTxnId)}`);
+      const data = await res.json();
+      if (data.received && data.payload) {
+        const p = data.payload;
+        return {
+          verified: p.event === "payment.verified",
+          payment: p.data ? {
+            amount: p.data.amount,
+            upiReferenceId: p.data.upiReferenceId || "",
+            senderName: p.data.senderName || "",
+            bankName: "",
+            confidence: p.data.confidence || 0,
+          } : undefined,
+          message: p.event === "payment.expired" ? "Payment verification timed out" : undefined,
+        };
+      }
+      return null;
     } catch {
       setPollLog((prev) => [...prev, `poll #${pollNum}: network error`]);
       return null;
@@ -181,15 +192,16 @@ export function LiveDemo() {
       });
     }, 1000);
 
-    // Real polling — every 5s, call the actual verify API
+    // Poll webhook status — lightweight map lookup, no Gmail/LLM calls
     let polls = 0;
+    const txnId = data.transactionId;
     const doPoll = async () => {
       if (aborted.current) return;
       polls++;
       setPollCount(polls);
-      setPollLog((prev) => [...prev, `poll #${polls}: checking sources for ₹${finalAmt}...`]);
+      setPollLog((prev) => [...prev, `poll #${polls}: waiting for payment confirmation...`]);
 
-      const result = await pollVerify(finalAmt, polls);
+      const result = await checkWebhookResult(txnId, polls);
 
       if (aborted.current) return;
 
@@ -218,7 +230,7 @@ export function LiveDemo() {
     pollTimer.current = setInterval(() => {
       if (!aborted.current) doPoll();
     }, POLL_INTERVAL);
-  }, [amount, upiId, merchantName, note, addPaisa, pollVerify]);
+  }, [amount, upiId, merchantName, note, addPaisa, checkWebhookResult]);
 
   // Auto-advance verification lines
   useEffect(() => {
