@@ -31,15 +31,15 @@ export function QuickStartSecurity() {
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="quickstart" className="px-8 py-10" ref={ref}>
-      <div className="max-w-[800px] mx-auto">
-        <div className="border-t border-border pt-10" />
+    <section id="quickstart" className="px-8 py-12" ref={ref}>
+      <div className="max-w-3xl mx-auto">
+        <div className="border-t border-border pt-12" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
-          className="text-center mb-8"
+          className="text-center mb-10"
         >
           <p className="text-[11px] text-muted-light tracking-[2px] uppercase mb-3">Why upiagent</p>
           <h2 className="font-serif text-[36px] font-normal tracking-tight">

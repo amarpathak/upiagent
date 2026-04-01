@@ -6,8 +6,8 @@ const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost
 
 export function Hero() {
   return (
-    <section className="pt-28 pb-8 px-8">
-      <div className="max-w-[800px] mx-auto text-center">
+    <section className="pt-28 pb-10 px-8">
+      <div className="max-w-3xl mx-auto text-center">
         {/* Pill badge */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}

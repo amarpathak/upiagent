@@ -50,8 +50,8 @@ export function PricingCta() {
   return (
     <>
       {/* ── Pricing ──────────────────────────────────────── */}
-      <section id="pricing" ref={pricingRef} className="border-t border-border pt-10 px-8 pb-12">
-        <div className="max-w-[1100px] mx-auto">
+      <section id="pricing" ref={pricingRef} className="border-t border-border pt-12 px-8 pb-14">
+        <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={pricingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
@@ -72,7 +72,7 @@ export function PricingCta() {
           </motion.div>
 
           {/* Plan cards */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-[720px] mx-auto">
+          <div className="grid md:grid-cols-2 gap-6">
             {plans.map((plan, i) => (
               <motion.div
                 key={plan.name}
@@ -141,7 +141,7 @@ export function PricingCta() {
       </section>
 
       {/* ── Final CTA ────────────────────────────────────── */}
-      <div ref={ctaRef} className="relative overflow-hidden px-8 py-16">
+      <div ref={ctaRef} className="relative overflow-hidden px-8 py-18">
         <motion.div
           initial={{ opacity: 0.3 }}
           animate={ctaInView ? { opacity: 1 } : { opacity: 0.3 }}
@@ -155,7 +155,7 @@ export function PricingCta() {
           }}
         />
 
-        <div className="relative max-w-[600px] mx-auto text-center">
+        <div className="relative max-w-2xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={ctaInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}

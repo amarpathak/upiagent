@@ -124,7 +124,7 @@ export function TrustStats() {
   return (
     <div ref={ref} className="border-t border-border">
       {/* Trust bar */}
-      <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <motion.p
           initial={{ opacity: 0 }}
           animate={inView ? { opacity: 1 } : {}}

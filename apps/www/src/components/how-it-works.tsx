@@ -35,7 +35,7 @@ export function HowItWorks() {
   const inView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="how" className="py-12 px-6">
+    <section id="how" className="py-14 px-6">
       <div className="max-w-5xl mx-auto">
         {/* Section label */}
         <motion.p
@@ -52,7 +52,7 @@ export function HowItWorks() {
           initial={{ opacity: 0, y: 12 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.45, delay: 0.08 }}
-          className="text-center font-serif text-[clamp(1.6rem,4vw,36px)] font-normal tracking-[-0.5px] mb-14"
+          className="text-center font-serif text-[clamp(1.6rem,4vw,36px)] font-normal tracking-[-0.5px] mb-10"
         >
           Four steps.{" "}
           <em
