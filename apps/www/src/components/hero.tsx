@@ -32,7 +32,7 @@ export function Hero() {
         >
           UPI is free.{" "}
           <span className="relative inline-block">
-            <span className="text-muted-light">Verifying payments</span>
+            <span className="text-muted-light">Payment gateways</span>
             <span
               className="absolute left-[-4px] right-[-4px] top-[52%] h-[3px] rounded-sm bg-gradient-to-r from-red-400 to-strike-red origin-left"
               style={{ animation: "strike-in 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.6s both" }}
