@@ -8,6 +8,7 @@ import {
   WebhookSender,
   CostTracker,
   LlmRateLimiter,
+  StepLogger,
   type WebhookPayload,
 } from "@upiagent/core";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
@@ -229,10 +230,8 @@ export async function POST(req: Request) {
   try {
     // Per-verification cost tracker — tracks tokens for this single request
     const costTracker = new CostTracker();
+    const stepLogger = new StepLogger();
 
-    // ── Core library handles: Gmail fetch → pre-LLM gate → rate limit →
-    //    LLM parse → 5-layer security validation (format, bank source,
-    //    amount, time window, dedup)
     const result = await fetchAndVerifyPayment({
       gmail: {
         clientId: merchant.gmail_client_id,
@@ -246,20 +245,22 @@ export async function POST(req: Request) {
       },
       expected: {
         amount: expectedAmount,
-        timeWindowMinutes: 30,
+        timeWindowMinutes: 60,
       },
       lookbackMinutes,
       maxEmails: 5,
       costTracker,
       rateLimiter: llmRateLimiter,
       skipMessageIds,
+      stepLogger,
     });
 
     // Track LLM usage per verification for billing
     const usage = costTracker.getUsage();
 
-    // Record evidence + LLM usage for billing/dashboard
-    await supabase.from("verification_evidence").insert({
+    // Only record evidence when the LLM actually ran (skip empty "no emails found" polls)
+    const hasLlmData = usage.callCount > 0 || result.verified;
+    if (hasLlmData) await supabase.from("verification_evidence").insert({
       payment_id: paymentId,
       source: "gmail",
       status: result.verified ? "match" : "no_match",
@@ -268,6 +269,19 @@ export async function POST(req: Request) {
       extracted_upi_ref: result.payment?.upiReferenceId ?? null,
       extracted_sender: result.payment?.senderName ?? null,
       extracted_bank: result.payment?.bankName ?? null,
+      raw_data: {
+        agent: "gmail",
+        model: merchant.llm_model ?? "gemini-flash-lite-latest",
+        provider: merchant.llm_provider ?? "gemini",
+        llm_response: result.payment ?? null,
+        failure_reason: result.failureReason ?? null,
+        failure_details: result.failureDetails ?? null,
+        is_payment_email: result.payment?.isPaymentEmail ?? null,
+        steps: result.steps ?? [],
+        verify_latency_ms: result.verified
+          ? new Date().getTime() - new Date(payment.created_at).getTime()
+          : null,
+      },
       layer_results: Object.fromEntries(
         result.layerResults.map((lr) => [lr.layer, lr.passed]),
       ),
@@ -280,6 +294,11 @@ export async function POST(req: Request) {
     console.log(`[verify] Payment ${paymentId}: ${result.verified ? "verified" : "pending"}, LLM: ${usage.totalTokens} tokens, ${usage.callCount} calls`);
 
     if (result.verified && result.payment) {
+      // Calculate verification latency
+      const verifiedAt = new Date();
+      const createdAt = new Date(payment.created_at);
+      const verifyLatencyMs = verifiedAt.getTime() - createdAt.getTime();
+
       // VERIFIED! Conditional update to prevent TOCTOU race
       const { data: updated } = await supabase
         .from("payments")

@@ -66,6 +66,7 @@ export async function createPaymentAction(formData: FormData) {
 
   let finalAmount = rawAmount;
   if (addPaisa === "on") {
+    // Random paisa 01-99 as unique fingerprint for amount matching
     const paisa = Math.floor(Math.random() * 99 + 1) / 100;
     finalAmount = rawAmount + paisa;
   }

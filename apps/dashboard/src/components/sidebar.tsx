@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/api-keys", label: "API Keys", icon: "#" },
   { href: "/dashboard/webhooks", label: "Webhooks", icon: ">" },
   { href: "/dashboard/embed", label: "Embed", icon: "<" },
+  { href: "/dashboard/agents", label: "Agents", icon: "\u25B6" },
   { href: "/dashboard/docs", label: "Docs", icon: "?" },
   { href: "/dashboard/ops", label: "Operations", icon: "%" },
 ];

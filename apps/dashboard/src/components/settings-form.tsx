@@ -60,7 +60,7 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
       label: "Gemini (Google)",
       models: [
         { value: "gemini-flash-lite-latest", label: "Gemini Flash Lite (latest)", free: true },
-        { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", free: true },
+        { value: "gemini-flash-lite-latest", label: "Gemini 2.0 Flash", free: true },
         { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", free: true },
         { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
       ],

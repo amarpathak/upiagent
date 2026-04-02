@@ -162,6 +162,11 @@ export default async function PaymentDetailPage({
           <div>
             <p className="text-sm text-muted-foreground">Verified at</p>
             <p className="text-sm">{formatDate(payment.verified_at)}</p>
+            {payment.created_at && (
+              <p className="text-xs text-muted-foreground mt-1 font-mono">
+                {Math.round((new Date(payment.verified_at).getTime() - new Date(payment.created_at).getTime()) / 1000)}s from creation
+              </p>
+            )}
           </div>
         )}
         {payment.intent_url && (
@@ -290,14 +295,105 @@ export default async function PaymentDetailPage({
                       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs">
                         {ev.source === "sms" ? "\u2709" : ev.source === "screenshot" ? "\ud83d\uddbc" : "\u2699"}
                       </span>
-                      {ev.source}
+                      {ev.raw_data?.agent ?? ev.source} agent
+                      {ev.raw_data?.model && (
+                        <span className="text-xs font-mono text-muted-foreground font-normal">
+                          {ev.raw_data.model}
+                        </span>
+                      )}
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                      {formatDate(ev.created_at)}
-                    </CardDescription>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={ev.status === "match" ? "default" : "outline"}
+                        className={ev.status === "match" ? "bg-green-500/15 text-green-400 text-[10px]" : "text-[10px]"}
+                      >
+                        {ev.status}
+                      </Badge>
+                      <CardDescription className="text-xs">
+                        {formatDate(ev.created_at)}
+                      </CardDescription>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
+                  {/* Failure reason */}
+                  {ev.raw_data?.failure_details && ev.status !== "match" && (
+                    <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5">
+                      <p className="text-xs text-red-400 font-mono">{ev.raw_data.failure_reason}</p>
+                      <p className="text-xs text-red-400/80 mt-1">{ev.raw_data.failure_details}</p>
+                    </div>
+                  )}
+
+                  {/* LLM parsed response */}
+                  {ev.raw_data?.llm_response && (
+                    <div className="p-3 rounded-lg border border-border bg-muted/30">
+                      <p className="text-xs text-muted-foreground mb-2">LLM Response</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        {ev.raw_data.llm_response.rawSubject && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">subject: </span>
+                            <span className="font-medium">{ev.raw_data.llm_response.rawSubject}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.amount != null && (
+                          <div>
+                            <span className="text-muted-foreground">amount: </span>
+                            <span className="font-mono">₹{ev.raw_data.llm_response.amount}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.bankName && (
+                          <div>
+                            <span className="text-muted-foreground">bank: </span>
+                            <span>{ev.raw_data.llm_response.bankName}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.senderName && (
+                          <div>
+                            <span className="text-muted-foreground">sender: </span>
+                            <span>{ev.raw_data.llm_response.senderName}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.senderUpiId && (
+                          <div>
+                            <span className="text-muted-foreground">upi: </span>
+                            <span className="font-mono">{ev.raw_data.llm_response.senderUpiId}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.upiReferenceId && (
+                          <div>
+                            <span className="text-muted-foreground">ref: </span>
+                            <span className="font-mono">{ev.raw_data.llm_response.upiReferenceId}</span>
+                          </div>
+                        )}
+                        {ev.raw_data.llm_response.timestamp && (
+                          <div>
+                            <span className="text-muted-foreground">time: </span>
+                            <span>{ev.raw_data.llm_response.timestamp}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-muted-foreground">is_payment: </span>
+                          <span className={ev.raw_data.llm_response.isPaymentEmail ? "text-green-400" : "text-red-400"}>
+                            {String(ev.raw_data.llm_response.isPaymentEmail)}
+                          </span>
+                        </div>
+                        {ev.raw_data.llm_response.confidence != null && (
+                          <div>
+                            <span className="text-muted-foreground">confidence: </span>
+                            <span className="font-mono">{Math.round(ev.raw_data.llm_response.confidence * 100)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No LLM response — show raw failure */}
+                  {!ev.raw_data?.llm_response && ev.raw_data?.is_payment_email === false && (
+                    <div className="p-3 rounded-lg border border-border bg-muted/30">
+                      <p className="text-xs text-muted-foreground">LLM determined this is not a payment email</p>
+                    </div>
+                  )}
+
                   {ev.confidence_score != null && (
                     <div>
                       <div className="flex items-center justify-between text-xs mb-1">
@@ -315,35 +411,44 @@ export default async function PaymentDetailPage({
                     </div>
                   )}
 
-                  {ev.extracted_data && (
+                  {/* Extracted payment data */}
+                  {(ev.extracted_amount != null || ev.extracted_upi_ref || ev.extracted_sender) && (
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      {ev.extracted_data.amount != null && (
+                      {ev.extracted_amount != null && (
                         <div>
                           <span className="text-muted-foreground text-xs">Amount</span>
-                          <p className="font-mono">₹{ev.extracted_data.amount}</p>
+                          <p className="font-mono">₹{ev.extracted_amount}</p>
                         </div>
                       )}
-                      {ev.extracted_data.upi_ref && (
+                      {ev.extracted_upi_ref && (
                         <div>
                           <span className="text-muted-foreground text-xs">UPI Ref</span>
-                          <p className="font-mono text-xs">{ev.extracted_data.upi_ref}</p>
+                          <p className="font-mono text-xs">{ev.extracted_upi_ref}</p>
                         </div>
                       )}
-                      {ev.extracted_data.sender && (
+                      {ev.extracted_sender && (
                         <div>
                           <span className="text-muted-foreground text-xs">Sender</span>
-                          <p>{ev.extracted_data.sender}</p>
+                          <p>{ev.extracted_sender}</p>
+                        </div>
+                      )}
+                      {ev.extracted_bank && (
+                        <div>
+                          <span className="text-muted-foreground text-xs">Bank</span>
+                          <p>{ev.extracted_bank}</p>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {ev.security_layers && (
+                  {/* Security layer checks */}
+                  {ev.layer_results && typeof ev.layer_results === "object" && (
                     <div className="flex flex-wrap gap-3 text-xs">
-                      {securityCheck(ev.security_layers.format_valid, "format")}
-                      {securityCheck(ev.security_layers.amount_match, "amount")}
-                      {securityCheck(ev.security_layers.time_valid, "time")}
-                      {securityCheck(ev.security_layers.dedup_pass, "dedup")}
+                      {Object.entries(ev.layer_results).map(([layer, passed]) => (
+                        <span key={layer} className={passed ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                          {passed ? "\u2713" : "\u2717"} {layer}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </CardContent>

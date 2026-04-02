@@ -12,6 +12,7 @@
 
 import type { gmail_v1 } from "googleapis";
 import type { EmailMessage } from "./types.js";
+import { convert } from "html-to-text";
 
 /**
  * Decodes Gmail's base64url-encoded body data.
@@ -37,19 +38,34 @@ export function decodeBase64Url(data: string): string {
  */
 export function stripHtmlTags(html: string): string {
   if (!html) return "";
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  try {
+    // Use html-to-text for proper HTML parsing (handles style blocks, tables, etc.)
+    return convert(html, {
+      wordwrap: false,
+      selectors: [
+        { selector: "img", format: "skip" },
+        { selector: "a", options: { ignoreHref: true } },
+      ],
+    }).replace(/\n{3,}/g, "\n\n").trim();
+  } catch {
+    // Fallback: regex stripping
+    return html
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/@media[\s\S]*?\}\s*\}/g, "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
 }
 
 /**
@@ -67,21 +83,35 @@ export function stripHtmlTags(html: string): string {
 export function extractTextBody(payload: gmail_v1.Schema$MessagePart): string {
   // Case 1: This part IS the text body (simple message or leaf node)
   if (payload.mimeType === "text/plain" && payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
+    const raw = decodeBase64Url(payload.body.data);
+    // Guard: some banks (HDFC) put raw HTML in text/plain parts.
+    const isHtml = /<[a-z][\s\S]*>/i.test(raw) || /@media\s/.test(raw) || /<!DOCTYPE/i.test(raw);
+    if (isHtml) {
+      // Strip HTML and return — this IS the only content available
+      return stripHtmlTags(raw);
+    }
+    return raw;
   }
 
   // Case 2: This is a multipart container — recurse into its parts
   if (payload.parts) {
-    // First pass: look for text/plain
+    // First pass: look for text/plain (recursive)
     for (const part of payload.parts) {
-      const text = extractTextBody(part);
-      if (text) return text;
+      if (part.mimeType === "text/plain" || part.mimeType?.startsWith("multipart/")) {
+        const text = extractTextBody(part);
+        if (text) return text;
+      }
     }
 
-    // Second pass: fall back to HTML and strip tags
+    // Second pass: fall back to HTML and strip tags (recursive)
     for (const part of payload.parts) {
       if (part.mimeType === "text/html" && part.body?.data) {
         return stripHtmlTags(decodeBase64Url(part.body.data));
+      }
+      // Recurse into nested multipart for HTML
+      if (part.mimeType?.startsWith("multipart/") && part.parts) {
+        const text = extractTextBody(part);
+        if (text) return text;
       }
     }
   }

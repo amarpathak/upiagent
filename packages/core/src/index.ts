@@ -61,6 +61,7 @@ export type {
 export { Logger, type LogLevel, type LogHandler } from "./utils/index.js";
 export { CostTracker } from "./utils/index.js";
 export { LlmRateLimiter } from "./utils/index.js";
+export { StepLogger } from "./utils/index.js";
 export { withRetry } from "./utils/index.js";
 export {
   UpiAgentError,

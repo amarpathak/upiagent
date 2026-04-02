@@ -26,6 +26,7 @@ import { CostTracker } from "./utils/cost.js";
 import { LlmRateLimiter } from "./utils/rate-limiter.js";
 import { LlmRateLimitError } from "./utils/errors.js";
 import { GmailClient } from "./gmail/client.js";
+import { StepLogger } from "./utils/step-logger.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export interface VerifyPaymentOptions {
   dedup?: DedupStore;
   rateLimiter?: LlmRateLimiter;
   costTracker?: CostTracker;
+  stepLogger?: StepLogger;
   preset?: VerificationPreset;
 }
 
@@ -124,8 +126,13 @@ export async function verifyPayment(
   email: EmailMessage,
   options: VerifyPaymentOptions,
 ): Promise<VerificationResult> {
+  const log = options.stepLogger;
+
   // ── Step 1: Pre-LLM gate ──────────────────────────────────────
-  if (shouldSkipLlm(email.from, email.body)) {
+  const skipped = shouldSkipLlm(email.from, email.body);
+  log?.log("pre_llm_gate", { email_id: email.id, sender: email.from, subject: email.subject, skipped });
+  if (skipped) {
+    log?.log("skipped", { reason: "not a payment notification (pre-LLM gate)" });
     return unverifiedResult("NOT_PAYMENT_EMAIL", "Email does not appear to be a payment notification");
   }
 
@@ -133,8 +140,10 @@ export async function verifyPayment(
   if (options.rateLimiter) {
     try {
       await options.rateLimiter.acquire();
+      log?.log("rate_limit", { acquired: true });
     } catch (err) {
       if (err instanceof LlmRateLimitError) {
+        log?.log("rate_limit", { acquired: false, error: err.message });
         return unverifiedResult(
           "NOT_PAYMENT_EMAIL",
           `LLM rate limit exceeded — ${err.message}`,
@@ -149,7 +158,19 @@ export async function verifyPayment(
     ? { callbacks: [options.costTracker.asLangChainHandler()] }
     : undefined;
 
+  log?.log("llm_call", { email_id: email.id, provider: options.llm.provider, model: options.llm.model, body_length: email.body.length });
+
   const parsed = await parsePaymentEmail(email, options.llm, callbacks);
+
+  log?.log("llm_response", {
+    email_id: email.id,
+    parsed: !!parsed,
+    response: parsed ?? null,
+    is_payment_email: parsed?.isPaymentEmail ?? null,
+    confidence: parsed?.confidence ?? null,
+    amount: parsed?.amount ?? null,
+    tokens: options.costTracker?.getUsage().totalTokens ?? null,
+  });
 
   if (!parsed) {
     return unverifiedResult("NOT_PAYMENT_EMAIL", "LLM could not parse payment data from email");
@@ -172,6 +193,14 @@ export async function verifyPayment(
     email.receivedAt,
     { from: email.from },
   );
+
+  log?.log("security_validation", {
+    verified: result.verified,
+    confidence: result.confidence,
+    failure_reason: result.failureReason ?? null,
+    failure_details: result.failureDetails ?? null,
+    layers: result.layerResults,
+  });
 
   // ── Step 5: Demo redaction ────────────────────────────────────
   if (options.preset === "demo" && result.payment) {
@@ -196,11 +225,21 @@ export async function verifyPayment(
 export async function fetchAndVerifyPayment(
   options: FetchAndVerifyOptions,
 ): Promise<VerificationResult> {
+  const log = options.stepLogger;
   const client = new GmailClient(options.gmail);
 
   const emails = await client.fetchBankAlerts({
     lookbackMinutes: options.lookbackMinutes ?? 30,
     maxResults: options.maxEmails ?? 10,
+  });
+
+  log?.log("gmail_fetch", {
+    lookback_minutes: options.lookbackMinutes ?? 30,
+    max_results: options.maxEmails ?? 10,
+    emails_found: emails.length,
+    email_ids: emails.map((e) => e.id),
+    senders: emails.map((e) => e.from),
+    subjects: emails.map((e) => e.subject),
   });
 
   // Track all message IDs we've seen (including previously skipped ones)
@@ -210,17 +249,25 @@ export async function fetchAndVerifyPayment(
   ];
 
   if (emails.length === 0) {
+    log?.log("no_emails", { reason: "No bank alert emails found" });
     const r = unverifiedResult(
       "NOT_PAYMENT_EMAIL",
       "No bank alert emails found in the specified time window",
     );
     r.processedMessageIds = allProcessedIds;
+    r.steps = log?.getSteps();
     return r;
   }
 
   // Skip emails already parsed by previous polls to avoid wasting LLM tokens
   const skip = options.skipMessageIds;
   const newEmails = skip ? emails.filter((e) => !skip.has(e.id)) : emails;
+
+  log?.log("dedup_filter", {
+    total_fetched: emails.length,
+    already_seen: skip?.size ?? 0,
+    new_emails: newEmails.length,
+  });
 
   if (newEmails.length === 0) {
     const r = unverifiedResult(
@@ -234,10 +281,13 @@ export async function fetchAndVerifyPayment(
   let lastResult: VerificationResult | null = null;
 
   for (const email of newEmails) {
+    log?.log("email_check", { email_id: email.id, sender: email.from, subject: email.subject, body_snippet: email.body.slice(0, 500), body_length: email.body.length });
     const result = await verifyPayment(email, options);
 
     if (result.verified) {
+      log?.log("verified", { email_id: email.id, confidence: result.confidence });
       result.processedMessageIds = allProcessedIds;
+      result.steps = log?.getSteps();
       return result;
     }
 
@@ -245,6 +295,8 @@ export async function fetchAndVerifyPayment(
   }
 
   // No verified match found — return the last unverified result
+  log?.log("no_match", { emails_checked: newEmails.length });
   lastResult!.processedMessageIds = allProcessedIds;
+  lastResult!.steps = log?.getSteps();
   return lastResult!;
 }

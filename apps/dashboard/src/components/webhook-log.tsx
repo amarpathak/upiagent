@@ -13,7 +13,7 @@ import {
 interface WebhookDelivery {
   id: string;
   status_code: number | null;
-  attempt_number: number;
+  attempt: number;
   created_at: string;
   payment_id: string;
   payments: {
@@ -100,7 +100,7 @@ export function WebhookLog({
               </Badge>
             </TableCell>
             <TableCell className="text-muted-foreground">
-              #{delivery.attempt_number}
+              #{delivery.attempt}
             </TableCell>
           </TableRow>
         ))}

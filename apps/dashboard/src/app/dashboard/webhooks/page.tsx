@@ -37,12 +37,22 @@ export default async function WebhooksPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: deliveries, error } = await serviceClient
-    .from("webhook_deliveries")
-    .select("id, status_code, attempt_number, created_at, payment_id, payments(amount, amount_with_paisa)")
-    .eq("payments.merchant_id", merchant.id)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  // Get this merchant's payment IDs, then fetch their webhook deliveries
+  const { data: merchantPayments } = await serviceClient
+    .from("payments")
+    .select("id")
+    .eq("merchant_id", merchant.id);
+
+  const paymentIds = (merchantPayments ?? []).map((p: { id: string }) => p.id);
+
+  const { data: deliveries, error } = paymentIds.length > 0
+    ? await serviceClient
+        .from("webhook_deliveries")
+        .select("id, status_code, attempt, created_at, payment_id, payments(amount, amount_with_paisa)")
+        .in("payment_id", paymentIds)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    : { data: [], error: null };
 
   if (error) {
     console.error("Failed to fetch webhook deliveries:", error);

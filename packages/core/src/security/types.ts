@@ -114,4 +114,7 @@ export interface VerificationResult {
 
   /** Gmail message IDs processed in this verification — used to skip on next poll */
   processedMessageIds?: string[];
+
+  /** Step-by-step pipeline trace for debugging and training data */
+  steps?: { step: string; ts: string; [key: string]: unknown }[];
 }
