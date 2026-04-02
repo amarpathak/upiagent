@@ -22,16 +22,16 @@ export function FooterNew() {
             <span className="font-mono text-[10px] text-muted uppercase tracking-[0.2em]">
               Product
             </span>
-            <a href="#how" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
+            <a href="/#how" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
               How it works
             </a>
-            <a href="#demo" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
+            <a href="/#demo" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
               Live demo
             </a>
-            <a href="#quickstart" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
+            <a href="/docs" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
               Docs
             </a>
-            <a href="#pricing" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
+            <a href="/#pricing" className="text-[13px] text-muted-light hover:text-foreground transition-colors">
               Pricing
             </a>
           </div>

@@ -13,8 +13,6 @@ interface VerifyResult {
     bankName: string;
     confidence: number;
   };
-  reason?: string;
-  message?: string;
 }
 
 function Field({
@@ -67,8 +65,7 @@ function Toggle({
   );
 }
 
-const MAX_WAIT_SECONDS = 180; // 3 minutes
-const POLL_INTERVAL = 5000; // 5 seconds
+const MAX_WAIT_SECONDS = 180;
 
 export function LiveDemo() {
   const [upiId, setUpiId] = useState("amarpathakhdfc@ybl");
@@ -87,54 +84,25 @@ export function LiveDemo() {
   const [finalAmount, setFinalAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [waitSeconds, setWaitSeconds] = useState(0);
-  const [pollCount, setPollCount] = useState(0);
-  const [pollLog, setPollLog] = useState<string[]>([]);
+  const [statusLog, setStatusLog] = useState<string[]>([]);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [visibleLines, setVisibleLines] = useState(0);
+  const [error, setError] = useState("");
+
   const waitTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const esRef = useRef<EventSource | null>(null);
   const aborted = useRef(false);
 
   const locked = step !== "idle";
 
   const providerModel: Record<string, string> = {
-    gemini: "gemini-2.5-flash",
+    gemini: "gemini-2.0-flash-lite",
     openai: "gpt-4o-mini",
-    anthropic: "claude-sonnet",
+    anthropic: "claude-3-haiku",
   };
 
-  // Check if webhook result has arrived (lightweight map lookup — no Gmail/LLM)
-  const checkWebhookResult = useCallback(async (paymentTxnId: string, pollNum: number): Promise<VerifyResult | null> => {
-    try {
-      const res = await fetch(`/api/webhook/demo?paymentId=${encodeURIComponent(paymentTxnId)}`);
-      const data = await res.json();
-      if (data.received && data.payload) {
-        const p = data.payload;
-        return {
-          verified: p.event === "payment.verified",
-          payment: p.data ? {
-            amount: p.data.amount,
-            upiReferenceId: p.data.upiReferenceId || "",
-            senderName: p.data.senderName || "",
-            bankName: "",
-            confidence: p.data.confidence || 0,
-          } : undefined,
-          message: p.event === "payment.expired" ? "Payment verification timed out" : undefined,
-        };
-      }
-      return null;
-    } catch {
-      setPollLog((prev) => [...prev, `poll #${pollNum}: network error`]);
-      return null;
-    }
-  }, []);
-
-  const [error, setError] = useState("");
-
   const startPaymentFlow = useCallback(async () => {
-    console.log("[upiagent] startPaymentFlow called, amount:", amount);
     setError("");
-
     const num = parseFloat(amount);
     if (!num || num < 1 || num > 3) {
       setError("Demo amount: ₹1–3 only");
@@ -146,20 +114,15 @@ export function LiveDemo() {
 
     let data;
     try {
-      console.log("[upiagent] fetching /api/demo...");
       const res = await fetch("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: num, upiId, merchantName, note, addPaisa }),
       });
-      console.log("[upiagent] response status:", res.status);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       data = await res.json();
-      console.log("[upiagent] got data:", data.transactionId);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to generate QR";
-      console.error("[upiagent] error:", msg);
-      setError(msg);
+      setError(e instanceof Error ? e.message : "Failed to generate QR");
       setLoading(false);
       return;
     }
@@ -169,74 +132,70 @@ export function LiveDemo() {
     setIntentUrl(data.intentUrl);
     setTxnId(data.transactionId);
     setFinalAmount(data.amount.toFixed(2));
-    setPollLog([]);
-    setPollCount(0);
+    setStatusLog(["waiting for bank email..."]);
     setVerifyResult(null);
-
-    // Go to waiting
     setStep("waiting");
     setWaitSeconds(0);
 
-    const finalAmt = data.amount.toFixed(2);
-
-    // Tick seconds
+    // Countdown timer
     waitTimer.current = setInterval(() => {
       setWaitSeconds((s) => {
         if (s + 1 >= MAX_WAIT_SECONDS) {
-          // Timeout
-          if (waitTimer.current) clearInterval(waitTimer.current);
-          if (pollTimer.current) clearInterval(pollTimer.current);
+          clearInterval(waitTimer.current!);
+          esRef.current?.close();
           setStep("timeout");
         }
         return s + 1;
       });
     }, 1000);
 
-    // Poll webhook status — lightweight map lookup, no Gmail/LLM calls
-    let polls = 0;
-    const txnId = data.transactionId;
-    const doPoll = async () => {
+    // SSE — server pushes result the moment Gmail notifies us, no polling
+    const es = new EventSource(`/api/demo/stream?txnId=${encodeURIComponent(data.transactionId)}`);
+    esRef.current = es;
+
+    es.addEventListener("connected", () => {
+      setStatusLog(["connected — watching inbox for bank email..."]);
+    });
+
+    es.addEventListener("heartbeat", () => {
+      setStatusLog((prev) => [...prev.slice(-4), "still watching..."]);
+    });
+
+    es.addEventListener("verified", (e: MessageEvent) => {
       if (aborted.current) return;
-      polls++;
-      setPollCount(polls);
-      setPollLog((prev) => [...prev, `poll #${polls}: waiting for payment confirmation...`]);
+      clearInterval(waitTimer.current!);
+      es.close();
+      const payload = JSON.parse(e.data);
+      setVerifyResult({
+        verified: true,
+        payment: {
+          amount: payload.payment.amount,
+          upiReferenceId: payload.payment.upiReferenceId || "",
+          senderName: payload.payment.senderName || "",
+          bankName: payload.payment.bankName || "",
+          confidence: payload.confidence || 0,
+        },
+      });
+      setStep("verifying");
+      setVisibleLines(0);
+    });
 
-      const result = await checkWebhookResult(txnId, polls);
-
+    es.addEventListener("expired", () => {
       if (aborted.current) return;
+      clearInterval(waitTimer.current!);
+      es.close();
+      setStep("timeout");
+    });
 
-      if (result?.verified) {
-        // Payment found!
-        if (waitTimer.current) clearInterval(waitTimer.current);
-        if (pollTimer.current) clearInterval(pollTimer.current);
-        setPollLog((prev) => [...prev, `poll #${polls}: ✓ payment detected!`]);
-        setVerifyResult(result);
-        setStep("verifying");
-        setVisibleLines(0);
-      } else {
-        const reason = result?.message || "no match yet";
-        setPollLog((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = `poll #${polls}: ${reason}`;
-          return updated;
-        });
-      }
+    es.onerror = () => {
+      if (aborted.current) return;
+      setStatusLog((prev) => [...prev, "connection dropped — retrying..."]);
     };
-
-    // First poll after 3s (give email time to arrive), then every 5s
-    setTimeout(() => {
-      if (!aborted.current) doPoll();
-    }, 3000);
-    pollTimer.current = setInterval(() => {
-      if (!aborted.current) doPoll();
-    }, POLL_INTERVAL);
-  }, [amount, upiId, merchantName, note, addPaisa, checkWebhookResult]);
+  }, [amount, upiId, merchantName, note, addPaisa]);
 
   // Auto-advance verification lines
   useEffect(() => {
     if (step !== "verifying") return;
-    const model = providerModel[provider] ?? provider;
-    const p = verifyResult?.payment;
     const totalLines = 6;
     if (visibleLines >= totalLines) {
       setStep("verified");
@@ -244,12 +203,13 @@ export function LiveDemo() {
     }
     const timer = setTimeout(() => setVisibleLines((v) => v + 1), 400);
     return () => clearTimeout(timer);
-  }, [step, visibleLines, provider, verifyResult, providerModel]);
+  }, [step, visibleLines]);
 
   const reset = useCallback(() => {
     aborted.current = true;
     if (waitTimer.current) clearInterval(waitTimer.current);
-    if (pollTimer.current) clearInterval(pollTimer.current);
+    esRef.current?.close();
+    esRef.current = null;
     setStep("idle");
     setQrDataUrl("");
     setIntentUrl("");
@@ -257,8 +217,7 @@ export function LiveDemo() {
     setFinalAmount("");
     setVisibleLines(0);
     setWaitSeconds(0);
-    setPollCount(0);
-    setPollLog([]);
+    setStatusLog([]);
     setVerifyResult(null);
     setError("");
   }, []);
@@ -267,12 +226,12 @@ export function LiveDemo() {
   const p = verifyResult?.payment;
 
   const verifyLines = p ? [
-    { text: `↳ source   found bank alert from ${p.bankName}`, type: "dim" },
+    { text: `↳ source   found bank alert from ${p.bankName || "bank"}`, type: "dim" },
     { text: `↳ llm      parsed with ${model}`, type: "dim" },
     { text: `↳ llm      ₹${p.amount} ref:${p.upiReferenceId} from:${p.senderName}`, type: "dim" },
     { text: `↳ security [format ✓] [amount ✓] [time ✓] [dedup ✓]`, type: "dim" },
     { text: "", type: "dim" },
-    { text: `✓ payment detected  ₹${p.amount}  confidence: ${p.confidence}`, type: "success" },
+    { text: `✓ payment verified  ₹${p.amount}  confidence: ${p.confidence}`, type: "success" },
   ] : [];
 
   const timeLeft = MAX_WAIT_SECONDS - waitSeconds;
@@ -309,26 +268,25 @@ export function LiveDemo() {
             {showConfig ? "Config" : ""}
           </button>
           <div className={showConfig ? "space-y-3" : "hidden"}>
-          <Field label="Merchant UPI" value={upiId} onChange={setUpiId} mono disabled={locked} />
-          <Field label="Brand name" value={merchantName} onChange={setMerchantName} disabled={locked} />
-          <Field label="Bank account name" value={accountHolder} onChange={setAccountHolder} disabled={locked} />
-          <Field label="Amount (₹)" value={amount} onChange={setAmount} type="number" mono disabled={locked} />
-          <Field label="Note" value={note} onChange={setNote} disabled={locked} />
-          <Toggle label="Add paisa" checked={addPaisa} onChange={setAddPaisa} disabled={locked}
-            hint="₹49 → ₹49.37 for unique matching" />
-          <Select label="LLM" value={provider} onChange={setProvider} disabled={locked}
-            options={[
-              { value: "gemini", label: "Gemini (free)" },
-              { value: "openai", label: "OpenAI" },
-              { value: "anthropic", label: "Anthropic" },
-            ]} />
+            <Field label="Merchant UPI" value={upiId} onChange={setUpiId} mono disabled={locked} />
+            <Field label="Brand name" value={merchantName} onChange={setMerchantName} disabled={locked} />
+            <Field label="Bank account name" value={accountHolder} onChange={setAccountHolder} disabled={locked} />
+            <Field label="Amount (₹)" value={amount} onChange={setAmount} type="number" mono disabled={locked} />
+            <Field label="Note" value={note} onChange={setNote} disabled={locked} />
+            <Toggle label="Add paisa" checked={addPaisa} onChange={setAddPaisa} disabled={locked}
+              hint="₹49 → ₹49.37 for unique matching" />
+            <Select label="LLM" value={provider} onChange={setProvider} disabled={locked}
+              options={[
+                { value: "gemini", label: "Gemini (free)" },
+                { value: "openai", label: "OpenAI" },
+                { value: "anthropic", label: "Anthropic" },
+              ]} />
           </div>
         </div>
 
         {/* Interactive area */}
         <div className="flex-1 p-5 min-h-[420px] flex flex-col overflow-x-hidden">
 
-          {/* Global error display */}
           {error && (
             <div className="text-xs text-red-400 font-mono bg-red-400/10 border border-red-400/20 rounded px-3 py-2 mb-3">
               Error: {error}
@@ -346,7 +304,7 @@ export function LiveDemo() {
                 {addPaisa && <span className="text-lg font-mono text-muted/40">.xx</span>}
               </div>
               <button
-                onClick={() => { startPaymentFlow(); }}
+                onClick={startPaymentFlow}
                 disabled={loading}
                 className="px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors font-mono disabled:opacity-40">
                 {loading ? "Generating..." : "Start payment flow"}
@@ -356,13 +314,11 @@ export function LiveDemo() {
 
           {step === "waiting" && (
             <div className="flex-1 flex flex-col items-center gap-3">
-              {/* Customer payment page preview */}
               <div className="text-[10px] text-muted/50 font-mono uppercase tracking-wider self-start mb-1">
                 Customer payment page
               </div>
 
               <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 space-y-4">
-                {/* Merchant header */}
                 <div className="text-center space-y-1">
                   <div className="w-10 h-10 rounded-full bg-surface-raised border border-border mx-auto flex items-center justify-center text-sm font-semibold">
                     {merchantName.charAt(0).toUpperCase()}
@@ -371,12 +327,10 @@ export function LiveDemo() {
                   {note && <p className="text-xs text-muted">{note}</p>}
                 </div>
 
-                {/* Amount */}
                 <div className="text-center">
                   <p className="text-3xl font-mono font-bold text-foreground">₹{finalAmount}</p>
                 </div>
 
-                {/* QR */}
                 {qrDataUrl && (
                   <div className="flex justify-center">
                     <div className="rounded-lg overflow-hidden border border-border">
@@ -386,7 +340,6 @@ export function LiveDemo() {
                   </div>
                 )}
 
-                {/* UPI name heads-up */}
                 {accountHolder && (
                   <div className="p-2 rounded-md bg-yellow-500/5 border border-yellow-500/15">
                     <p className="text-[11px] text-yellow-500/80 text-center leading-relaxed">
@@ -395,7 +348,6 @@ export function LiveDemo() {
                   </div>
                 )}
 
-                {/* Pay button */}
                 {intentUrl && (
                   <a
                     href={intentUrl}
@@ -410,17 +362,17 @@ export function LiveDemo() {
                 </p>
               </div>
 
-              {/* Polling status — below the payment page */}
+              {/* SSE status */}
               <div className="w-full max-w-sm mt-1 p-3 rounded border border-border bg-background">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                  <span className="text-[11px] font-mono text-muted">Verifying</span>
+                  <span className="text-[11px] font-mono text-muted">Listening for payment</span>
                   <span className="text-[10px] font-mono text-muted/40 ml-auto">
                     {minutes}:{seconds.toString().padStart(2, "0")}
                   </span>
                 </div>
                 <div className="space-y-1 font-mono text-[10px] max-h-24 overflow-y-auto">
-                  {pollLog.map((line, i) => (
+                  {statusLog.map((line, i) => (
                     <div key={i} className={`animate-line ${line.includes("✓") ? "text-accent-green" : "text-muted/50"}`}>
                       {line}
                     </div>
@@ -434,7 +386,6 @@ export function LiveDemo() {
             <div className="flex-1 flex flex-col items-center justify-center gap-4">
               <div className="text-2xl text-muted">⏱</div>
               <p className="text-sm text-muted">No payment detected within 3 minutes.</p>
-              <p className="text-xs text-muted/50">Polled {pollCount} times for ₹{finalAmount}</p>
               <button onClick={reset}
                 className="px-5 py-2 border border-border text-sm font-mono rounded-md hover:bg-surface-raised transition-colors">
                 Try again
@@ -445,7 +396,7 @@ export function LiveDemo() {
           {(step === "verifying" || step === "verified") && (
             <div className="flex-1 font-mono text-[12px] leading-6">
               <div className="text-accent-green text-[11px] mb-3">
-                ✦ payment detected on poll #{pollCount}
+                ✦ payment detected
               </div>
 
               {verifyLines.slice(0, visibleLines).map((line, i) => (

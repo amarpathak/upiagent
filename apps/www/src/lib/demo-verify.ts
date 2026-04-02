@@ -99,7 +99,7 @@ export async function runDemoVerification(
         },
         llm: {
           provider: "gemini",
-          model: "gemini-2.0-flash",
+          model: "gemini-2.0-flash-lite",
           apiKey: geminiApiKey,
         },
         expected: {

@@ -7,7 +7,6 @@ const UPI_APPS = [
   { name: "Google Pay", src: "/logos/gpay.svg", height: "h-7" },
   { name: "PhonePe", src: "/logos/phonepe.svg", height: "h-6" },
   { name: "Paytm", src: "/logos/paytm.svg", height: "h-5" },
-  { name: "CRED", src: "/logos/cred.svg", height: "h-5" },
   { name: "BHIM UPI", src: "/logos/bhim.svg", height: "h-7" },
   { name: "Amazon Pay", src: "/logos/amazonpay.svg", height: "h-6" },
 ];

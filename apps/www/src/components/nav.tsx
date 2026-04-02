@@ -5,10 +5,10 @@ import { motion } from "@/components/motion-client";
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3001";
 
 const links = [
-  { label: "How it works", href: "#how" },
-  { label: "Live demo", href: "#demo" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Docs", href: "#quickstart" },
+  { label: "How it works", href: "/#how" },
+  { label: "Live demo", href: "/#demo" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "Docs", href: "/docs" },
 ];
 
 export function Nav() {

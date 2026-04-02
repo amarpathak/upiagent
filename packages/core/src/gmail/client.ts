@@ -77,6 +77,11 @@ function validateSender(from: string): boolean {
   return false;
 }
 
+export interface GmailWatchResult {
+  historyId: string;
+  expiration: string; // epoch ms as string
+}
+
 export class GmailClient {
   private gmail: gmail_v1.Gmail;
 
@@ -92,6 +97,90 @@ export class GmailClient {
     });
 
     this.gmail = google.gmail({ version: "v1", auth: oauth2Client });
+  }
+
+  /**
+   * Start a Gmail push notification watch on this inbox.
+   *
+   * Google will POST to your Pub/Sub topic whenever a new message arrives.
+   * The watch expires after ~7 days — caller is responsible for renewal.
+   *
+   * @param topicName Full Pub/Sub topic name: "projects/YOUR_PROJECT/topics/YOUR_TOPIC"
+   * @returns historyId (current state) and expiration timestamp
+   */
+  async watch(topicName: string): Promise<GmailWatchResult> {
+    const res = await this.gmail.users.watch({
+      userId: "me",
+      requestBody: {
+        topicName,
+        labelIds: ["INBOX"],
+      },
+    });
+    return {
+      historyId: res.data.historyId!,
+      expiration: res.data.expiration!,
+    };
+  }
+
+  /**
+   * Stop the Gmail push watch for this inbox.
+   */
+  async stopWatch(): Promise<void> {
+    await this.gmail.users.stop({ userId: "me" });
+  }
+
+  /**
+   * Fetch all new messages since a given historyId (delta sync).
+   *
+   * Called inside the Pub/Sub push handler to get only the emails that
+   * arrived since the last known state — avoids re-processing old emails.
+   *
+   * @param startHistoryId The historyId from the last watch or push notification
+   * @returns New EmailMessages since that point, filtered to known bank senders
+   */
+  async fetchSinceHistory(startHistoryId: string): Promise<EmailMessage[]> {
+    let res;
+    try {
+      res = await this.gmail.users.history.list({
+        userId: "me",
+        startHistoryId,
+        historyTypes: ["messageAdded"],
+        labelId: "INBOX",
+      });
+    } catch (err: unknown) {
+      // historyId too old — fall back to recent emails (last 5 min)
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code: number }).code === 404
+      ) {
+        console.warn("[GmailClient] historyId expired, falling back to 5-min lookback");
+        return this.fetchBankAlerts({ lookbackMinutes: 5, maxResults: 5 });
+      }
+      throw err;
+    }
+
+    const addedMessages = (res.data.history ?? [])
+      .flatMap((h) => h.messagesAdded ?? [])
+      .map((m) => m.message)
+      .filter((m): m is NonNullable<typeof m> => !!m?.id);
+
+    if (addedMessages.length === 0) return [];
+
+    const messages = await Promise.all(
+      addedMessages.map(async (msg) => {
+        const detail = await this.gmail.users.messages.get({
+          userId: "me",
+          id: msg.id!,
+          format: "full",
+        });
+        return parseGmailMessage(detail.data);
+      }),
+    );
+
+    const parsed = messages.filter((msg): msg is EmailMessage => msg !== null);
+    return parsed.filter((msg) => validateSender(msg.from));
   }
 
   /**
