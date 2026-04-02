@@ -13,7 +13,7 @@
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.0",
     "@types/qrcode": "^1.5.6",
-    "@upiagent/core": "workspace:*",
+    "@upiagent/core": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "googleapis": "^171.4.0",

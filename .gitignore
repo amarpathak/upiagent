@@ -22,3 +22,6 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Turbo cache
+.turbo/
