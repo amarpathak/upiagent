@@ -32,7 +32,7 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
 
       // Stop polling on rate limit — don't waste remaining polls
       if (res.status === 429) {
-        if (timer.current) clearInterval(timer.current);
+        if (timer.current) clearTimeout(timer.current);
         setStopped(true);
         setMessage("Rate limited. Wait a moment, then retry manually.");
         return true;
@@ -53,13 +53,13 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
       setMessage(data.message || "Checking...");
 
       if (data.verified || data.status === "verified") {
-        if (timer.current) clearInterval(timer.current);
+        if (timer.current) clearTimeout(timer.current);
         setMessage("Payment detected and matched!");
         router.refresh();
         return true;
       }
       if (data.status === "expired") {
-        if (timer.current) clearInterval(timer.current);
+        if (timer.current) clearTimeout(timer.current);
         setMessage("Payment expired");
         router.refresh();
         return true;
@@ -73,29 +73,33 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
   }, [paymentId, router]);
 
   // Auto-poll on mount for pending payments
+  // Uses setTimeout chaining so the next poll only starts after the previous one finishes
   useEffect(() => {
-    if (status !== "pending") return; // only auto-poll for pending, not expired
+    if (status !== "pending") return;
 
+    let cancelled = false;
     let count = 0;
 
     const poll = async () => {
+      if (cancelled) return;
       count++;
       setPollCount(count);
       if (count > MAX_POLLS) {
-        if (timer.current) clearInterval(timer.current);
         setStopped(true);
         setMessage("Auto-polling stopped. Use the button below to retry.");
         return;
       }
       await doVerify();
+      if (!cancelled) {
+        timer.current = setTimeout(poll, POLL_INTERVAL_MS);
+      }
     };
 
-    const firstPoll = setTimeout(poll, 3000);
-    timer.current = setInterval(poll, POLL_INTERVAL_MS);
+    timer.current = setTimeout(poll, 3000);
 
     return () => {
-      clearTimeout(firstPoll);
-      if (timer.current) clearInterval(timer.current);
+      cancelled = true;
+      if (timer.current) clearTimeout(timer.current);
     };
   }, [paymentId, status, doVerify]);
 
