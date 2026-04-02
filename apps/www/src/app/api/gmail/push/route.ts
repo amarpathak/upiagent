@@ -73,16 +73,25 @@ export async function POST(req: Request) {
     return new Response("ok");
   }
 
-  const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-  const clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
-    ? decrypt(merchant.gmail_client_secret, encKey)
-    : merchant.gmail_client_secret;
-  const refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
-    ? decrypt(merchant.gmail_refresh_token, encKey)
-    : merchant.gmail_refresh_token;
-  const llmKey = (encKey && merchant.llm_api_key && isEncrypted(merchant.llm_api_key)
-    ? decrypt(merchant.llm_api_key, encKey)
-    : merchant.llm_api_key) || GEMINI_API_KEY;
+  let clientSecret: string;
+  let refreshToken: string;
+  let llmKey: string;
+
+  try {
+    const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+    clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
+      ? decrypt(merchant.gmail_client_secret, encKey)
+      : merchant.gmail_client_secret;
+    refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+      ? decrypt(merchant.gmail_refresh_token, encKey)
+      : merchant.gmail_refresh_token;
+    llmKey = (encKey && merchant.llm_api_key && isEncrypted(merchant.llm_api_key)
+      ? decrypt(merchant.llm_api_key, encKey)
+      : merchant.llm_api_key) || GEMINI_API_KEY;
+  } catch (err) {
+    console.error("[gmail/push] Decryption failed — check CREDENTIALS_ENCRYPTION_KEY:", err instanceof Error ? err.message : err);
+    return new Response("ok");
+  }
 
   if (!llmKey) {
     console.error("[gmail/push] No LLM key configured");
