@@ -4,10 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 import { createPayment, GmailClient, decrypt, isEncrypted } from "@upiagent/core";
 import { addPending } from "@/lib/pending-verifications";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 const PUBSUB_TOPIC_NAME = process.env.PUBSUB_TOPIC_NAME || "";
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
   // Start Gmail watch so Google notifies us when an email arrives
   if (PUBSUB_TOPIC_NAME) {
     try {
-      const { data: merchant } = await supabase
+      const { data: merchant } = await getSupabase()
         .from("merchants")
         .select("gmail_client_id, gmail_client_secret, gmail_refresh_token")
         .eq("upi_id", DEMO_UPI_ID)

@@ -11,10 +11,12 @@ import {
 } from "@upiagent/core";
 import { randomUUID } from "crypto";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
@@ -48,7 +50,7 @@ export async function runDemoVerification(
   paymentId: string,
   expectedAmount: number,
 ): Promise<void> {
-  const { data: merchant } = await supabase
+  const { data: merchant } = await getSupabase()
     .from("merchants")
     .select("id, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_api_key, webhook_url, webhook_secret")
     .eq("upi_id", DEMO_UPI_ID)

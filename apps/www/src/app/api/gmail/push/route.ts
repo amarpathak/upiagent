@@ -17,10 +17,12 @@ import { GmailClient, decrypt, isEncrypted, verifyPayment } from "@upiagent/core
 import { getPendingForMerchant, removePending } from "@/lib/pending-verifications";
 import { pushToStream, closeStream } from "@/lib/stream-manager";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
@@ -57,7 +59,7 @@ export async function POST(req: Request) {
   console.log(`[gmail/push] Notification for ${emailAddress}, historyId: ${historyId}`);
 
   // Load merchant credentials
-  const { data: merchant } = await supabase
+  const { data: merchant } = await getSupabase()
     .from("merchants")
     .select("id, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_api_key")
     .eq("upi_id", DEMO_UPI_ID)
