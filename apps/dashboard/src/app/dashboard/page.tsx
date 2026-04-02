@@ -81,7 +81,7 @@ export default async function DashboardPage() {
 
   const { data: merchant } = await supabase
     .from("merchants")
-    .select("id, name, upi_id")
+    .select("id, name, upi_id, llm_provider, llm_model, monthly_token_limit")
     .eq("user_id", user.id)
     .single();
 
@@ -151,6 +151,33 @@ export default async function DashboardPage() {
             withConfidence.length
         )
       : 0;
+
+  // LLM usage this month — aggregate from verification_evidence via payments
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const { data: monthPaymentIds } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("merchant_id", merchant.id);
+
+  const pIds = (monthPaymentIds ?? []).map((p: { id: string }) => p.id);
+  const { data: usageData } = pIds.length > 0
+    ? await supabase
+        .from("verification_evidence")
+        .select("llm_total_tokens, llm_call_count")
+        .in("payment_id", pIds)
+        .gte("created_at", monthStart)
+    : { data: [] };
+
+  const monthlyTokens = (usageData ?? []).reduce(
+    (sum: number, e: { llm_total_tokens: number | null }) => sum + (e.llm_total_tokens ?? 0),
+    0,
+  );
+  const monthlyCalls = (usageData ?? []).reduce(
+    (sum: number, e: { llm_call_count: number | null }) => sum + (e.llm_call_count ?? 0),
+    0,
+  );
+  const tokenLimit = merchant.monthly_token_limit ?? 100_000;
+  const usagePercent = tokenLimit > 0 ? Math.min(100, Math.round((monthlyTokens / tokenLimit) * 100)) : 0;
 
   const recentPayments = paymentsList.slice(0, 5);
 
@@ -245,6 +272,65 @@ export default async function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* LLM Usage */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">AI Usage — {new Date().toLocaleString("en-US", { month: "long" })}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader>
+              <CardDescription>Tokens used</CardDescription>
+              <CardTitle className="text-2xl font-mono">
+                {monthlyTokens.toLocaleString("en-IN")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{usagePercent}% of limit</span>
+                  <span>{tokenLimit.toLocaleString("en-IN")} limit</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      usagePercent >= 90
+                        ? "bg-red-500"
+                        : usagePercent >= 70
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                    }`}
+                    style={{ width: `${usagePercent}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>LLM Calls</CardDescription>
+              <CardTitle className="text-2xl font-mono">{monthlyCalls}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">this month</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardDescription>Model</CardDescription>
+              <CardTitle className="text-lg font-mono">
+                {merchant.llm_model ?? "gemini-2.0-flash"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {merchant.llm_provider ?? "gemini"} — {merchant.llm_provider === "gemini" && !merchant.llm_model?.includes("anthropic") ? "free tier" : "own key"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div>

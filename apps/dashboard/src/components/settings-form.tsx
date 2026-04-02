@@ -16,6 +16,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 interface Merchant {
@@ -26,6 +33,7 @@ interface Merchant {
   gmail_client_secret: string | null;
   gmail_refresh_token: string | null;
   llm_provider: string | null;
+  llm_model: string | null;
   has_llm_api_key: boolean;
   webhook_url: string | null;
   enabled_sources: string[] | null;
@@ -43,7 +51,37 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
     merchant.enabled_sources || ["gmail"],
   );
   const [showLlmKey, setShowLlmKey] = useState(false);
+  const [llmProvider, setLlmProvider] = useState(merchant.llm_provider || "gemini");
+  const [llmModel, setLlmModel] = useState(merchant.llm_model || "gemini-2.0-flash");
   const searchParams = useSearchParams();
+
+  const MODEL_OPTIONS: Record<string, { label: string; models: { value: string; label: string; free?: boolean }[] }> = {
+    gemini: {
+      label: "Gemini (Google)",
+      models: [
+        { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", free: true },
+        { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite", free: true },
+        { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", free: true },
+        { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+      ],
+    },
+    anthropic: {
+      label: "Anthropic (Claude)",
+      models: [
+        { value: "claude-sonnet-4-5-20250514", label: "Claude Sonnet 4.5" },
+        { value: "claude-haiku-3-5-20241022", label: "Claude Haiku 3.5" },
+      ],
+    },
+    openai: {
+      label: "OpenAI",
+      models: [
+        { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+        { value: "gpt-4o", label: "GPT-4o" },
+      ],
+    },
+  };
+
+  const needsOwnKey = llmProvider !== "gemini" || !MODEL_OPTIONS.gemini.models.find((m) => m.value === llmModel)?.free;
 
   const gmailStatus = searchParams.get("gmail");
   const gmailConnected = !!merchant.gmail_refresh_token;
@@ -57,7 +95,8 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
   async function handleSubmit(formData: FormData) {
     setSaving(true);
     formData.set("enabled_sources", enabledSources.join(","));
-    formData.set("llm_provider", "gemini"); // default
+    formData.set("llm_provider", llmProvider);
+    formData.set("llm_model", llmModel);
     try {
       await updateMerchant(formData);
     } catch (err) {
@@ -190,43 +229,74 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
 
       <Separator />
 
-      {/* LLM Provider */}
+      {/* LLM Provider & Model */}
       <Card>
         <CardHeader>
           <CardTitle>AI Verification</CardTitle>
           <CardDescription>
-            Powered by Gemini — free, included with upiagent
+            Choose your AI provider and model for payment verification
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-surface">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-sm">Gemini 2.5 Flash — active</span>
-            <Badge variant="outline" className="ml-auto text-xs">Free</Badge>
+          {/* Provider */}
+          <div className="flex flex-col gap-2">
+            <Label>Provider</Label>
+            <Select value={llmProvider} onValueChange={(v: string | null) => {
+              if (!v) return;
+              setLlmProvider(v);
+              // Auto-select first model for new provider
+              const firstModel = MODEL_OPTIONS[v]?.models[0];
+              if (firstModel) setLlmModel(firstModel.value);
+            }}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(MODEL_OPTIONS).map(([key, opt]) => (
+                  <SelectItem key={key} value={key}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <p className="text-xs text-muted-foreground">
-            upiagent uses Gemini for parsing bank alert emails. This is free and included.
-            Usage is tracked per merchant.
-          </p>
 
-          <Separator />
-
-          <details className="group">
-            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-              Bring your own API key (optional)
-            </summary>
-            <div className="mt-3 flex flex-col gap-3">
+          {/* Model */}
+          <div className="flex flex-col gap-2">
+            <Label>Model</Label>
+            <Select value={llmModel} onValueChange={(v: string | null) => { if (v) setLlmModel(v); }}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODEL_OPTIONS[llmProvider]?.models.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                    {m.free ? " (free)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {llmProvider === "gemini" && MODEL_OPTIONS.gemini.models.find((m) => m.value === llmModel)?.free && (
               <p className="text-xs text-muted-foreground">
-                Use your own OpenAI or Anthropic key instead of the default Gemini.
+                Free tier — included with upiagent, no API key needed
               </p>
+            )}
+          </div>
+
+          {/* API Key — required for non-free models */}
+          {needsOwnKey && (
+            <>
+              <Separator />
               <div className="flex flex-col gap-2">
-                <Label htmlFor="llm_api_key" className="text-xs">API Key</Label>
+                <Label htmlFor="llm_api_key">
+                  API Key
+                  <span className="text-red-500 ml-1">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     id="llm_api_key"
                     name="llm_api_key"
                     type={showLlmKey ? "text" : "password"}
-                    placeholder={merchant.has_llm_api_key ? "Key set — leave blank to keep" : "sk-... or AIza..."}
+                    placeholder={merchant.has_llm_api_key ? "Key set — leave blank to keep" : llmProvider === "anthropic" ? "sk-ant-..." : llmProvider === "openai" ? "sk-..." : "AIza..."}
                     defaultValue=""
                     className="font-mono text-xs"
                   />
@@ -238,9 +308,43 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
                     {showLlmKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Required for {MODEL_OPTIONS[llmProvider]?.label}. Your key is encrypted at rest.
+                </p>
               </div>
-            </div>
-          </details>
+            </>
+          )}
+
+          {!needsOwnKey && (
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                Use your own Gemini API key (optional)
+              </summary>
+              <div className="mt-3 flex flex-col gap-2">
+                <Label htmlFor="llm_api_key" className="text-xs">API Key</Label>
+                <div className="relative">
+                  <Input
+                    id="llm_api_key"
+                    name="llm_api_key"
+                    type={showLlmKey ? "text" : "password"}
+                    placeholder={merchant.has_llm_api_key ? "Key set — leave blank to keep" : "AIza..."}
+                    defaultValue=""
+                    className="font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowLlmKey(!showLlmKey)}
+                  >
+                    {showLlmKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Override the shared free key with your own for higher rate limits
+                </p>
+              </div>
+            </details>
+          )}
         </CardContent>
       </Card>
 

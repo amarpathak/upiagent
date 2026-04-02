@@ -112,6 +112,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
+  // Monthly token limit enforcement
+  const tokenLimit = merchant.monthly_token_limit ?? 100_000;
+  if (tokenLimit > 0) {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    // Get this merchant's payment IDs, then aggregate tokens from evidence
+    const { data: merchantPayments } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("merchant_id", merchant.id);
+
+    const paymentIds = (merchantPayments ?? []).map((p: { id: string }) => p.id);
+
+    if (paymentIds.length > 0) {
+      const { data: monthUsage } = await supabase
+        .from("verification_evidence")
+        .select("llm_total_tokens")
+        .in("payment_id", paymentIds)
+        .gte("created_at", monthStart.toISOString());
+
+      const usedTokens = (monthUsage ?? []).reduce(
+        (sum: number, e: { llm_total_tokens: number | null }) => sum + (e.llm_total_tokens ?? 0),
+        0,
+      );
+
+      if (usedTokens >= tokenLimit) {
+        return NextResponse.json(
+          { error: "Monthly AI token limit reached. Upgrade your plan or add your own API key in Settings.", retryable: false },
+          { status: 429 },
+        );
+      }
+    }
+  }
+
   if (payment.status !== "pending" && payment.status !== "expired" && !force) {
     return NextResponse.json({
       verified: payment.status === "verified",

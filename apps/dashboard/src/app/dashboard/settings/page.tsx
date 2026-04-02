@@ -16,7 +16,7 @@ export default async function SettingsPage() {
   const { data: merchant, error } = await supabase
     .from("merchants")
     .select(
-      "id, name, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_provider, llm_api_key, webhook_url, enabled_sources, display_name, upi_account_holder, contact_email, contact_phone, website_url, description"
+      "id, name, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_provider, llm_model, llm_api_key, webhook_url, enabled_sources, display_name, upi_account_holder, contact_email, contact_phone, website_url, description"
     )
     .eq("user_id", user.id)
     .single();
@@ -31,6 +31,7 @@ export default async function SettingsPage() {
   const merchantForClient = {
     ...safeMerchant,
     has_llm_api_key: !!llm_api_key,
+    llm_model: merchant.llm_model ?? "gemini-2.0-flash",
   };
 
   return (

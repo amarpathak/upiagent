@@ -46,6 +46,11 @@ const updateMerchantSchema = z.object({
     .optional()
     .or(z.literal("")),
   llm_provider: z.enum(VALID_LLM_PROVIDERS).optional(),
+  llm_model: z
+    .string()
+    .max(100, "Model name too long")
+    .optional()
+    .or(z.literal("")),
   llm_api_key: z
     .string()
     .max(256, "API key too long")
@@ -97,6 +102,7 @@ export async function updateMerchant(formData: FormData) {
     website_url: (formData.get("website_url") as string) || "",
     description: (formData.get("description") as string) || "",
     llm_provider: (formData.get("llm_provider") as string) || "gemini",
+    llm_model: (formData.get("llm_model") as string) || "gemini-2.0-flash",
     llm_api_key: (formData.get("llm_api_key") as string) || "",
     webhook_url: (formData.get("webhook_url") as string) || "",
     enabled_sources: (formData.get("enabled_sources") as string) || "",
@@ -134,6 +140,7 @@ export async function updateMerchant(formData: FormData) {
     website_url: data.website_url || null,
     description: data.description || null,
     llm_provider: data.llm_provider || "gemini",
+    llm_model: data.llm_model || "gemini-2.0-flash",
     webhook_url: data.webhook_url || null,
     enabled_sources: enabledSources,
     updated_at: new Date().toISOString(),
