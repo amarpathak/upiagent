@@ -24,7 +24,7 @@ function getSupabase() {
 }
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
-const LLM_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "";
+const LLM_API_KEY = process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "";
 
 export async function POST(req: Request) {
   try {
