@@ -27,6 +27,18 @@ const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 export async function POST(req: Request) {
+  try {
+    return await handlePush(req);
+  } catch (err) {
+    console.error("[gmail/push] UNHANDLED ERROR:", err instanceof Error ? err.stack : err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
+async function handlePush(req: Request) {
   let body: unknown;
   try {
     body = await req.json();
