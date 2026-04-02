@@ -6,6 +6,8 @@ import {
   isEncrypted,
   type LlmProvider,
   WebhookSender,
+  CostTracker,
+  LlmRateLimiter,
   type WebhookPayload,
 } from "@upiagent/core";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
@@ -44,6 +46,13 @@ const supabase = createClient(
 );
 
 const webhookSender = new WebhookSender();
+
+// Per-merchant rate limiter — shared across all merchants on this instance
+// Production should use a distributed limiter (Redis)
+const llmRateLimiter = new LlmRateLimiter({
+  maxCallsPerMinute: 20,
+  maxCallsPerHour: 200,
+});
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
@@ -177,6 +186,9 @@ export async function POST(req: Request) {
   const expectedAmount = Number(payment.amount_with_paisa ?? payment.amount);
 
   try {
+    // Per-verification cost tracker — tracks tokens for this single request
+    const costTracker = new CostTracker();
+
     // ── Core library handles: Gmail fetch → pre-LLM gate → rate limit →
     //    LLM parse → 5-layer security validation (format, bank source,
     //    amount, time window, dedup)
@@ -197,9 +209,14 @@ export async function POST(req: Request) {
       },
       lookbackMinutes,
       maxEmails: 10,
+      costTracker,
+      rateLimiter: llmRateLimiter,
     });
 
-    // Record evidence regardless of outcome
+    // Track LLM usage per verification for billing
+    const usage = costTracker.getUsage();
+
+    // Record evidence + LLM usage for billing/dashboard
     await supabase.from("verification_evidence").insert({
       payment_id: paymentId,
       source: "gmail",
@@ -212,7 +229,13 @@ export async function POST(req: Request) {
       layer_results: Object.fromEntries(
         result.layerResults.map((lr) => [lr.layer, lr.passed]),
       ),
+      llm_input_tokens: usage.inputTokens,
+      llm_output_tokens: usage.outputTokens,
+      llm_total_tokens: usage.totalTokens,
+      llm_call_count: usage.callCount,
     });
+
+    console.log(`[verify] Payment ${paymentId}: ${result.verified ? "verified" : "pending"}, LLM: ${usage.totalTokens} tokens, ${usage.callCount} calls`);
 
     if (result.verified && result.payment) {
       // VERIFIED! Conditional update to prevent TOCTOU race
