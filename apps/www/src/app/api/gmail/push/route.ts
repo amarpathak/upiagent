@@ -97,7 +97,7 @@ export async function POST(req: Request) {
 
   // Fetch only new emails since historyId
   const gmailClient = new GmailClient({
-    clientId: merchant.gmail_client_id || process.env.GOOGLE_CLIENT_ID!,
+    clientId: merchant.gmail_client_id || process.env.GMAIL_CLIENT_ID!,
     clientSecret,
     refreshToken,
   });
