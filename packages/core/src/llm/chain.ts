@@ -73,6 +73,14 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
         temperature,
       });
 
+    case "openrouter":
+      return new ChatOpenAI({
+        openAIApiKey: config.apiKey,
+        modelName: config.model,
+        temperature,
+        configuration: { baseURL: "https://openrouter.ai/api/v1" },
+      });
+
     default: {
       // TypeScript exhaustiveness check — if someone adds a new provider
       // to the LlmProvider type but forgets to handle it here, this line

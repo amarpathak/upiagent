@@ -16,7 +16,7 @@
  * requirements that dictate which LLM they can use. Supporting both means
  * your library works in more environments.
  */
-export type LlmProvider = "openai" | "anthropic" | "gemini";
+export type LlmProvider = "openai" | "anthropic" | "gemini" | "openrouter";
 
 /**
  * Configuration for the LLM parser.
