@@ -64,7 +64,12 @@ export async function POST(req: Request) {
 
   // Trigger background verification — runs after response is sent
   after(async () => {
-    await runDemoVerification(payment.transactionId, payment.amount);
+    console.log("[after] Background verification starting for", payment.transactionId, "amount:", payment.amount);
+    try {
+      await runDemoVerification(payment.transactionId, payment.amount);
+    } catch (err) {
+      console.error("[after] Background verification crashed:", err);
+    }
   });
 
   return NextResponse.json({
