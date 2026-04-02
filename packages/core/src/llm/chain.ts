@@ -54,15 +54,15 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
   switch (config.provider) {
     case "openai":
       return new ChatOpenAI({
-        openAIApiKey: config.apiKey,
-        modelName: config.model,
+        apiKey: config.apiKey,
+        model: config.model,
         temperature,
       });
 
     case "anthropic":
       return new ChatAnthropic({
-        anthropicApiKey: config.apiKey,
-        modelName: config.model,
+        apiKey: config.apiKey,
+        model: config.model,
         temperature,
       });
 
@@ -75,8 +75,8 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
 
     case "openrouter":
       return new ChatOpenAI({
-        openAIApiKey: config.apiKey,
-        modelName: config.model,
+        apiKey: config.apiKey,
+        model: config.model,
         temperature,
         configuration: { baseURL: "https://openrouter.ai/api/v1" },
       });
