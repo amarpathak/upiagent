@@ -34,7 +34,10 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[gmail/push] UNHANDLED ERROR:", err instanceof Error ? err.stack : err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
+      JSON.stringify({
+        error: err instanceof Error ? err.message : "Internal error",
+        _debug_key_prefix: (process.env.GEMINI_API_KEY || "").substring(0, 10),
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
