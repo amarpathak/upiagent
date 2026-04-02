@@ -154,7 +154,11 @@ async function handlePush(req: Request) {
   for (const pending of pendingPayments) {
     for (const email of newEmails) {
       const result = await verifyPayment(email, {
-        llm: { provider: "gemini", model: "gemini-2.0-flash", apiKey: llmKey },
+        llm: {
+          provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "gemini",
+          model: process.env.OPENROUTER_API_KEY ? "google/gemini-2.0-flash-001" : "gemini-2.0-flash",
+          apiKey: process.env.OPENROUTER_API_KEY || llmKey,
+        },
         expected: { amount: pending.amount_with_paisa, timeWindowMinutes: 30 },
         preset: "demo",
       });
