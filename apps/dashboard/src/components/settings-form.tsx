@@ -52,15 +52,15 @@ export function SettingsForm({ merchant }: { merchant: Merchant }) {
   );
   const [showLlmKey, setShowLlmKey] = useState(false);
   const [llmProvider, setLlmProvider] = useState(merchant.llm_provider || "gemini");
-  const [llmModel, setLlmModel] = useState(merchant.llm_model || "gemini-2.0-flash");
+  const [llmModel, setLlmModel] = useState(merchant.llm_model || "gemini-flash-lite-latest");
   const searchParams = useSearchParams();
 
   const MODEL_OPTIONS: Record<string, { label: string; models: { value: string; label: string; free?: boolean }[] }> = {
     gemini: {
       label: "Gemini (Google)",
       models: [
+        { value: "gemini-flash-lite-latest", label: "Gemini Flash Lite (latest)", free: true },
         { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", free: true },
-        { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite", free: true },
         { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", free: true },
         { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
       ],

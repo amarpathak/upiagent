@@ -241,7 +241,7 @@ export async function POST(req: Request) {
       },
       llm: {
         provider: (merchant.llm_provider ?? "gemini") as LlmProvider,
-        model: merchant.llm_model ?? "gemini-2.0-flash",
+        model: merchant.llm_model ?? "gemini-flash-lite-latest",
         apiKey: llmApiKey,
       },
       expected: {

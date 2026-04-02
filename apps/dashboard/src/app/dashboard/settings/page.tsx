@@ -31,7 +31,7 @@ export default async function SettingsPage() {
   const merchantForClient = {
     ...safeMerchant,
     has_llm_api_key: !!llm_api_key,
-    llm_model: merchant.llm_model ?? "gemini-2.0-flash",
+    llm_model: merchant.llm_model ?? "gemini-flash-lite-latest",
   };
 
   return (

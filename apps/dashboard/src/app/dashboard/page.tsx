@@ -321,7 +321,7 @@ export default async function DashboardPage() {
             <CardHeader>
               <CardDescription>Model</CardDescription>
               <CardTitle className="text-lg font-mono">
-                {merchant.llm_model ?? "gemini-2.0-flash"}
+                {merchant.llm_model ?? "gemini-flash-lite-latest"}
               </CardTitle>
             </CardHeader>
             <CardContent>
