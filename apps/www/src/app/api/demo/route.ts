@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createPayment, GmailClient, decrypt, isEncrypted } from "@upiagent/core";
-import { addPending } from "@/lib/pending-verifications";
 
 function getSupabase() {
   return createClient(
@@ -68,56 +67,65 @@ export async function POST(req: Request) {
   }
 
   const effectiveUpiId = upiId || DEMO_UPI_ID;
+  const supabase = getSupabase();
 
   const payment = await createPayment(
     { upiId: effectiveUpiId, name: merchantName || "upiagent demo" },
     { amount: Number(amount), note, addPaisa, transactionId: `TXN_DEMO_${Date.now()}` },
   );
 
-  // Register as pending — push handler will match this when Gmail notifies us
-  addPending({
-    txnId: payment.transactionId,
-    expectedAmount: payment.amount,
-    merchantUpiId: effectiveUpiId,
-    createdAt: Date.now(),
-  });
+  // Look up demo merchant for both the payment insert and Gmail watch
+  const { data: merchant } = await supabase
+    .from("merchants")
+    .select("id, gmail_client_id, gmail_client_secret, gmail_refresh_token")
+    .eq("upi_id", DEMO_UPI_ID)
+    .not("gmail_refresh_token", "is", null)
+    .limit(1)
+    .single();
+
+  // Store pending payment in Supabase — shared across all serverless instances
+  if (merchant) {
+    const { error: insertErr } = await supabase.from("payments").insert({
+      merchant_id: merchant.id,
+      transaction_id: payment.transactionId,
+      amount: Number(amount),
+      amount_with_paisa: payment.amount,
+      note,
+      status: "pending",
+      intent_url: payment.intentUrl,
+      qr_data_url: payment.qrDataUrl,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+    if (insertErr) {
+      console.error("[demo] Failed to insert payment:", insertErr.message);
+    }
+  }
 
   // Start Gmail watch so Google notifies us when an email arrives
-  if (PUBSUB_TOPIC_NAME) {
+  if (PUBSUB_TOPIC_NAME && merchant?.gmail_refresh_token) {
     try {
-      const { data: merchant } = await getSupabase()
-        .from("merchants")
-        .select("gmail_client_id, gmail_client_secret, gmail_refresh_token")
-        .eq("upi_id", DEMO_UPI_ID)
-        .not("gmail_refresh_token", "is", null)
-        .limit(1)
-        .single();
+      const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+      const clientSecret =
+        encKey && isEncrypted(merchant.gmail_client_secret)
+          ? decrypt(merchant.gmail_client_secret, encKey)
+          : merchant.gmail_client_secret;
+      const refreshToken =
+        encKey && isEncrypted(merchant.gmail_refresh_token)
+          ? decrypt(merchant.gmail_refresh_token, encKey)
+          : merchant.gmail_refresh_token;
 
-      if (merchant?.gmail_refresh_token) {
-        const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-        const clientSecret =
-          encKey && isEncrypted(merchant.gmail_client_secret)
-            ? decrypt(merchant.gmail_client_secret, encKey)
-            : merchant.gmail_client_secret;
-        const refreshToken =
-          encKey && isEncrypted(merchant.gmail_refresh_token)
-            ? decrypt(merchant.gmail_refresh_token, encKey)
-            : merchant.gmail_refresh_token;
+      const gmailClient = new GmailClient({
+        clientId: merchant.gmail_client_id || process.env.GMAIL_CLIENT_ID!,
+        clientSecret,
+        refreshToken,
+      });
 
-        const gmailClient = new GmailClient({
-          clientId: merchant.gmail_client_id || process.env.GMAIL_CLIENT_ID!,
-          clientSecret,
-          refreshToken,
-        });
-
-        await gmailClient.watch(PUBSUB_TOPIC_NAME);
-        console.log(`[demo] Gmail watch started for ${payment.transactionId}`);
-      }
+      await gmailClient.watch(PUBSUB_TOPIC_NAME);
+      console.log(`[demo] Gmail watch started for ${payment.transactionId}`);
     } catch (err) {
-      // Non-fatal — log and continue. Push won't work but the QR is still valid.
       console.error("[demo] Failed to start Gmail watch:", err instanceof Error ? err.message : err);
     }
-  } else {
+  } else if (!PUBSUB_TOPIC_NAME) {
     console.warn("[demo] PUBSUB_TOPIC_NAME not set — Gmail push notifications disabled");
   }
 

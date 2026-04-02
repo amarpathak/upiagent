@@ -3,7 +3,8 @@
  *
  * Google Cloud Pub/Sub pushes here when a new email arrives in the watched inbox.
  * We decode the notification, fetch new emails via historyId delta-sync,
- * try to match against pending verifications, and push results via SSE.
+ * match against pending payments in Supabase, and update the payment row
+ * so the SSE stream (which polls Supabase) picks it up.
  *
  * Setup required (one-time):
  *   1. Create a Pub/Sub topic in Google Cloud Console
@@ -14,8 +15,6 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { GmailClient, decrypt, isEncrypted, verifyPayment } from "@upiagent/core";
-import { getPendingForMerchant, removePending } from "@/lib/pending-verifications";
-import { pushToStream, closeStream } from "@/lib/stream-manager";
 
 function getSupabase() {
   return createClient(
@@ -58,8 +57,10 @@ export async function POST(req: Request) {
 
   console.log(`[gmail/push] Notification for ${emailAddress}, historyId: ${historyId}`);
 
+  const supabase = getSupabase();
+
   // Load merchant credentials
-  const { data: merchant } = await getSupabase()
+  const { data: merchant } = await supabase
     .from("merchants")
     .select("id, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_api_key")
     .eq("upi_id", DEMO_UPI_ID)
@@ -88,9 +89,15 @@ export async function POST(req: Request) {
     return new Response("ok");
   }
 
-  // Check if we have anything pending for this merchant
-  const pendingList = getPendingForMerchant(merchant.upi_id);
-  if (pendingList.length === 0) {
+  // Check pending payments in Supabase (not in-memory — works across instances)
+  const { data: pendingPayments } = await supabase
+    .from("payments")
+    .select("transaction_id, amount_with_paisa")
+    .eq("merchant_id", merchant.id)
+    .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString());
+
+  if (!pendingPayments || pendingPayments.length === 0) {
     console.log("[gmail/push] No pending verifications for merchant, ignoring");
     return new Response("ok");
   }
@@ -115,26 +122,34 @@ export async function POST(req: Request) {
     return new Response("ok");
   }
 
-  console.log(`[gmail/push] ${newEmails.length} new email(s), ${pendingList.length} pending verification(s)`);
+  console.log(`[gmail/push] ${newEmails.length} new email(s), ${pendingPayments.length} pending verification(s)`);
 
   // Try each pending verification against each new email
-  for (const pending of pendingList) {
+  for (const pending of pendingPayments) {
     for (const email of newEmails) {
       const result = await verifyPayment(email, {
         llm: { provider: "gemini", model: "gemini-2.0-flash-lite", apiKey: llmKey },
-        expected: { amount: pending.expectedAmount, timeWindowMinutes: 30 },
+        expected: { amount: pending.amount_with_paisa, timeWindowMinutes: 30 },
         preset: "demo",
       });
 
       if (result.verified && result.payment) {
-        console.log(`[gmail/push] ✓ Verified ${pending.txnId} — ₹${result.payment.amount}`);
-        removePending(pending.txnId);
-        pushToStream(pending.txnId, "verified", {
-          txnId: pending.txnId,
-          payment: result.payment,
-          confidence: result.confidence,
-        });
-        closeStream(pending.txnId);
+        console.log(`[gmail/push] ✓ Verified ${pending.transaction_id} — ₹${result.payment.amount}`);
+
+        // Update payment in Supabase — the SSE stream will pick this up
+        await supabase
+          .from("payments")
+          .update({
+            status: "verified",
+            upi_reference_id: result.payment.upiReferenceId,
+            sender_name: result.payment.senderName,
+            bank_name: result.payment.bankName,
+            overall_confidence: result.confidence,
+            verified_at: new Date().toISOString(),
+          })
+          .eq("transaction_id", pending.transaction_id)
+          .eq("status", "pending"); // atomic — only update if still pending
+
         break;
       }
     }

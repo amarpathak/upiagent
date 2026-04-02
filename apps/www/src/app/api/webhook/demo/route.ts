@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { verifyWebhookSignature } from "@upiagent/core";
 
-const webhookResults = new Map<string, { payload: unknown; expiresAt: number }>();
-const TTL_MS = 5 * 60 * 1000;
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of webhookResults) {
-    if (now > entry.expiresAt) webhookResults.delete(key);
-  }
-}, 60_000);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const DEMO_WEBHOOK_SECRET = process.env.DEMO_WEBHOOK_SECRET || "0".repeat(64);
 
@@ -28,10 +26,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing paymentId" }, { status: 400 });
   }
 
-  webhookResults.set(paymentId, {
-    payload,
-    expiresAt: Date.now() + TTL_MS,
-  });
+  // Update payment in Supabase if the webhook carries verification data
+  if (payload.event === "payment.verified" && payload.data) {
+    const d = payload.data;
+    await getSupabase()
+      .from("payments")
+      .update({
+        status: "verified",
+        upi_reference_id: d.upiReferenceId,
+        sender_name: d.senderName,
+        bank_name: d.bankName,
+        overall_confidence: d.confidence,
+        verified_at: d.verifiedAt || new Date().toISOString(),
+      })
+      .eq("transaction_id", paymentId)
+      .eq("status", "pending");
+  }
 
   return NextResponse.json({ received: true });
 }
@@ -44,12 +54,33 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing paymentId" }, { status: 400 });
   }
 
-  const entry = webhookResults.get(paymentId);
+  const { data: payment } = await getSupabase()
+    .from("payments")
+    .select("status, upi_reference_id, sender_name, bank_name, overall_confidence, amount_with_paisa, verified_at")
+    .eq("transaction_id", paymentId)
+    .single();
 
-  if (!entry || Date.now() > entry.expiresAt) {
+  if (!payment) {
     return NextResponse.json({ received: false });
   }
 
-  webhookResults.delete(paymentId);
-  return NextResponse.json({ received: true, payload: entry.payload });
+  if (payment.status === "verified") {
+    return NextResponse.json({
+      received: true,
+      payload: {
+        event: "payment.verified",
+        data: {
+          paymentId,
+          amount: payment.amount_with_paisa,
+          upiReferenceId: payment.upi_reference_id,
+          senderName: payment.sender_name,
+          bankName: payment.bank_name,
+          confidence: payment.overall_confidence,
+          verifiedAt: payment.verified_at,
+        },
+      },
+    });
+  }
+
+  return NextResponse.json({ received: false });
 }
