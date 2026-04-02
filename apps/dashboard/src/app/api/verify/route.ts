@@ -316,10 +316,21 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[verify] Error during payment verification:", error);
+    const errMsg = error instanceof Error ? error.message : "Gmail fetch error";
+
+    // Surface quota/rate-limit errors as 429 so the client stops polling
+    const isQuotaError = errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("rate limit") || errMsg.includes("Too Many Requests");
+    if (isQuotaError) {
+      return NextResponse.json(
+        { error: "LLM quota exceeded. Please wait or upgrade your API plan.", retryable: false },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json({
       verified: false,
       status: "pending",
-      message: error instanceof Error ? error.message : "Gmail fetch error",
+      message: errMsg,
     });
   }
 }

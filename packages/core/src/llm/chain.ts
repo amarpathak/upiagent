@@ -57,6 +57,7 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
         apiKey: config.apiKey,
         model: config.model,
         temperature,
+        maxRetries: 0,
       });
 
     case "anthropic":
@@ -64,6 +65,7 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
         apiKey: config.apiKey,
         model: config.model,
         temperature,
+        maxRetries: 0,
       });
 
     case "gemini":
@@ -71,6 +73,7 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
         apiKey: config.apiKey,
         model: config.model,
         temperature,
+        maxRetries: 0, // Fail fast on 429 — our poller handles retries
       });
 
     case "openrouter":
@@ -78,6 +81,7 @@ function createLlmModel(config: LlmConfig): BaseChatModel {
         apiKey: config.apiKey,
         model: config.model,
         temperature,
+        maxRetries: 0,
         configuration: { baseURL: "https://openrouter.ai/api/v1" },
       });
 
