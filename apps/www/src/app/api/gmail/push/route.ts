@@ -149,7 +149,7 @@ async function handlePush(req: Request) {
   for (const pending of pendingPayments) {
     for (const email of newEmails) {
       const result = await verifyPayment(email, {
-        llm: { provider: "gemini", model: "gemini-2.0-flash-lite", apiKey: llmKey },
+        llm: { provider: "gemini", model: "gemini-2.0-flash", apiKey: llmKey },
         expected: { amount: pending.amount_with_paisa, timeWindowMinutes: 30 },
         preset: "demo",
       });

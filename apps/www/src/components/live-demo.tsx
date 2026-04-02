@@ -96,7 +96,7 @@ export function LiveDemo() {
   const locked = step !== "idle";
 
   const providerModel: Record<string, string> = {
-    gemini: "gemini-2.0-flash-lite",
+    gemini: "gemini-2.0-flash",
     openai: "gpt-4o-mini",
     anthropic: "claude-3-haiku",
   };
