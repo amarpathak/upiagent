@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 28" fill="none">
-  <text x="2" y="22" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="24" letter-spacing="3" fill="#1a1a1a">CRED</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 150">
+  <path d="M89.3 24.5C67.5 24.5 49.8 42.2 49.8 64v22c0 21.8 17.7 39.5 39.5 39.5h10.5v-28H89.3c-6.4 0-11.5-5.1-11.5-11.5V64c0-6.4 5.1-11.5 11.5-11.5h10.5v-28H89.3z" fill="#333"/>
+  <path d="M148.5 24.5v101h28V86h15.8c21.8 0 39.5-17.7 39.5-39.5v-22h-28v22c0 6.4-5.1 11.5-11.5 11.5H176.5V24.5h-28z" fill="#333"/>
+  <path d="M280 24.5v101h83.3v-28h-55.3V86h39.5V58h-39.5V52.5h55.3v-28H280z" fill="#333"/>
+  <path d="M411.3 24.5v101h28V86h15.8c21.8 0 39.5-17.7 39.5-39.5v-22c0-21.8-17.7-39.5-39.5-39.5h-15.8v28h15.8c6.4 0 11.5 5.1 11.5 11.5v22c0 6.4-5.1 11.5-11.5 11.5h-15.8V24.5h-28z" fill="#333"/>
 </svg>

@@ -143,7 +143,7 @@ export function TrustStats() {
               initial={{ opacity: 0, y: 6 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.35, delay: 0.1 + i * 0.07 }}
-              className={`${app.height} w-auto opacity-40 hover:opacity-70 transition-opacity duration-150 cursor-default grayscale`}
+              className={`${app.height} w-auto opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default`}
             />
           ))}
         </div>
