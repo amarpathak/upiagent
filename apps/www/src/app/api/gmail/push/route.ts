@@ -24,7 +24,9 @@ function getSupabase() {
 }
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
-const LLM_API_KEY = process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "";
+function getLlmApiKey() {
+  return process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "";
+}
 
 export async function POST(req: Request) {
   try {
@@ -99,7 +101,7 @@ async function handlePush(req: Request) {
       : merchant.gmail_refresh_token;
     llmKey = (encKey && merchant.llm_api_key && isEncrypted(merchant.llm_api_key)
       ? decrypt(merchant.llm_api_key, encKey)
-      : merchant.llm_api_key) || LLM_API_KEY;
+      : merchant.llm_api_key) || getLlmApiKey();
   } catch (err) {
     console.error("[gmail/push] Decryption failed — check CREDENTIALS_ENCRYPTION_KEY:", err instanceof Error ? err.message : err);
     return new Response("ok");
