@@ -104,13 +104,6 @@ export function createPaymentExtractionChain(
 ) {
   const model = createLlmModel(config);
 
-  // Bind callbacks if provided so LangChain fires them after each LLM call.
-  // This is how CostTracker hooks into the chain — it's not possible via
-  // withStructuredOutput() directly since that doesn't expose token metadata.
-  const modelWithCallbacks = options?.callbacks
-    ? (model as any).bind({ callbacks: options.callbacks }) as typeof model
-    : model;
-
   // .withStructuredOutput() tells LangChain:
   // "Force the LLM to respond in this exact Zod schema format."
   //
@@ -119,7 +112,7 @@ export function createPaymentExtractionChain(
   // 2. Passes the schema to the LLM's native structured output feature
   // 3. Parses the LLM's response back through Zod for validation
   // 4. Returns a typed object (not a string) — ParsedPayment
-  const structuredModel = modelWithCallbacks.withStructuredOutput(parsedPaymentSchema, {
+  const structuredModel = model.withStructuredOutput(parsedPaymentSchema, {
     // "name" identifies this schema in the LLM API call.
     // For OpenAI, this becomes the function name. For Anthropic, the tool name.
     name: "extract_payment",
@@ -151,19 +144,23 @@ export async function parsePaymentEmail(
   config: LlmConfig,
   options?: { callbacks?: { handleLLMEnd: (output: any) => Promise<void> }[] },
 ): Promise<ParsedPayment | null> {
-  const chain = createPaymentExtractionChain(config, options);
+  const chain = createPaymentExtractionChain(config);
 
   // Sanitize email content before sending to LLM to mitigate prompt injection.
   // The sanitizer removes known injection patterns, JSON-like content, and truncates.
   const { sanitizedSubject, sanitizedBody } = sanitizeEmailForLlm(email.subject, email.body);
 
   // Invoke the chain with the sanitized email data.
-  // These keys must match the {placeholders} in the prompt template.
-  const result = await chain.invoke({
-    subject: sanitizedSubject,
-    body: sanitizedBody,
-    from: email.from,
-  });
+  // Callbacks are passed via invoke config (not model.bind) so they work
+  // with all LangChain provider implementations.
+  const result = await chain.invoke(
+    {
+      subject: sanitizedSubject,
+      body: sanitizedBody,
+      from: email.from,
+    },
+    options?.callbacks ? { callbacks: options.callbacks } : undefined,
+  );
 
   // At this point, `result` is already validated by Zod.
   // If the LLM returned something that didn't match the schema,
