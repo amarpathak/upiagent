@@ -111,4 +111,7 @@ export interface VerificationResult {
     passed: boolean;
     details?: string;
   }[];
+
+  /** Gmail message IDs processed in this verification — used to skip on next poll */
+  processedMessageIds?: string[];
 }

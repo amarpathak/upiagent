@@ -83,7 +83,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const { paymentId, force } = await req.json();
+  const { paymentId, force, seenMessageIds: seenArr } = await req.json();
+  const skipMessageIds = Array.isArray(seenArr) ? new Set<string>(seenArr) : undefined;
 
   if (!paymentId) {
     return NextResponse.json({ error: "paymentId required" }, { status: 400 });
@@ -212,9 +213,10 @@ export async function POST(req: Request) {
         timeWindowMinutes: 30,
       },
       lookbackMinutes,
-      maxEmails: 10,
+      maxEmails: 5,
       costTracker,
       rateLimiter: llmRateLimiter,
+      skipMessageIds,
     });
 
     // Track LLM usage per verification for billing
@@ -294,6 +296,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         verified: true,
         status: "verified",
+        seenMessageIds: result.processedMessageIds ?? [],
         payment: {
           amount: result.payment.amount,
           upiReferenceId: result.payment.upiReferenceId,
@@ -308,6 +311,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       verified: false,
       status: "pending",
+      seenMessageIds: result.processedMessageIds ?? [],
       message: result.failureDetails ?? `No matching ₹${expectedAmount} credit found`,
     });
   } catch (error) {

@@ -48,6 +48,8 @@ export interface FetchAndVerifyOptions extends VerifyPaymentOptions {
   gmail: GmailCredentials;
   lookbackMinutes?: number;
   maxEmails?: number;
+  /** Gmail message IDs already parsed by previous polls — skip to save LLM tokens */
+  skipMessageIds?: Set<string>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -201,19 +203,41 @@ export async function fetchAndVerifyPayment(
     maxResults: options.maxEmails ?? 10,
   });
 
+  // Track all message IDs we've seen (including previously skipped ones)
+  const allProcessedIds = [
+    ...(options.skipMessageIds ?? []),
+    ...emails.map((e) => e.id),
+  ];
+
   if (emails.length === 0) {
-    return unverifiedResult(
+    const r = unverifiedResult(
       "NOT_PAYMENT_EMAIL",
       "No bank alert emails found in the specified time window",
     );
+    r.processedMessageIds = allProcessedIds;
+    return r;
+  }
+
+  // Skip emails already parsed by previous polls to avoid wasting LLM tokens
+  const skip = options.skipMessageIds;
+  const newEmails = skip ? emails.filter((e) => !skip.has(e.id)) : emails;
+
+  if (newEmails.length === 0) {
+    const r = unverifiedResult(
+      "NOT_PAYMENT_EMAIL",
+      "No new bank alert emails since last check",
+    );
+    r.processedMessageIds = allProcessedIds;
+    return r;
   }
 
   let lastResult: VerificationResult | null = null;
 
-  for (const email of emails) {
+  for (const email of newEmails) {
     const result = await verifyPayment(email, options);
 
     if (result.verified) {
+      result.processedMessageIds = allProcessedIds;
       return result;
     }
 
@@ -221,5 +245,6 @@ export async function fetchAndVerifyPayment(
   }
 
   // No verified match found — return the last unverified result
+  lastResult!.processedMessageIds = allProcessedIds;
   return lastResult!;
 }

@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const POLL_INTERVAL_MS = 10_000;
-const MAX_POLLS = 18;
+const POLL_INTERVAL_MS = 15_000; // 15s between polls (was 10s)
+const MAX_POLLS = 10; // 10 polls = ~2.5 min (was 18 = 3 min)
 
 export function PaymentPoller({ paymentId, status }: { paymentId: string; status: string }) {
   const [pollCount, setPollCount] = useState(0);
@@ -13,6 +13,8 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
   const [checking, setChecking] = useState(false);
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Accumulate seen Gmail message IDs across polls so the server skips re-parsing them
+  const seenMessageIds = useRef<string[]>([]);
 
   const doVerify = useCallback(async (force = false) => {
     setChecking(true);
@@ -21,9 +23,33 @@ export function PaymentPoller({ paymentId, status }: { paymentId: string; status
       const res = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId, force }),
+        body: JSON.stringify({
+          paymentId,
+          force,
+          seenMessageIds: seenMessageIds.current,
+        }),
       });
+
+      // Stop polling on rate limit — don't waste remaining polls
+      if (res.status === 429) {
+        if (timer.current) clearInterval(timer.current);
+        setStopped(true);
+        setMessage("Rate limited. Wait a moment, then retry manually.");
+        return true;
+      }
+
       const data = await res.json();
+
+      // Accumulate seen message IDs from server
+      if (Array.isArray(data.seenMessageIds)) {
+        const existing = new Set(seenMessageIds.current);
+        for (const id of data.seenMessageIds) {
+          if (!existing.has(id)) {
+            seenMessageIds.current.push(id);
+          }
+        }
+      }
+
       setMessage(data.message || "Checking...");
 
       if (data.verified || data.status === "verified") {
