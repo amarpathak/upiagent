@@ -39,11 +39,14 @@ setInterval(() => {
   }
 }, 5 * 60_000);
 
-// Use service role to bypass RLS — this is a backend verification worker
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+// Lazy-init: avoid module-level createClient which crashes the build
+// when env vars aren't available at static-analysis time.
+function getServiceSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const webhookSender = new WebhookSender();
 
@@ -64,6 +67,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
  * Called by the payment detail page to poll for verification.
  */
 export async function POST(req: Request) {
+  const supabase = getServiceSupabase();
   // C2: Authenticate the caller
   const authClient = await createAuthClient();
   const { data: { user } } = await authClient.auth.getUser();
