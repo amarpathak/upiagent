@@ -1,10 +1,10 @@
 /**
- * @upiagent/core — UPI payment verification via Gmail bank alert parsing
+ * upiagent — UPI payment verification via Gmail bank alert parsing
  *
  * Full payment flow: Generate QR → Customer pays → Verify via Gmail + LLM
  *
  * Usage:
- *   import { verifyPayment, fetchAndVerifyPayment, createPayment } from '@upiagent/core';
+ *   import { verifyPayment, fetchAndVerifyPayment, createPayment } from 'upiagent';
  *
  *   // Step 1: Create payment QR
  *   const payment = await createPayment({

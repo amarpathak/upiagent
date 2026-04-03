@@ -1,7 +1,7 @@
 /**
  * Step Logger — captures every decision in the verification pipeline.
  * Collected steps are returned with the verification result for
- * dashboard observability and debugging.
+ * observability and debugging.
  */
 
 export interface VerifyStep {

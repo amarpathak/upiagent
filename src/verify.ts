@@ -1,7 +1,7 @@
 /**
  * Unified Payment Verification API
  *
- * This is the primary API for @upiagent/core v1. It provides two functions:
+ * This is the primary API for upiagent. It provides two functions:
  *
  * 1. verifyPayment(email, options) — verify a single email message
  * 2. fetchAndVerifyPayment(options) — fetch from Gmail + verify in a loop
