@@ -9,7 +9,7 @@ interface WebhookSenderOptions {
 
 const DEFAULT_RETRY_DELAYS = [1000, 5000, 25000];
 
-/** Reject private/internal IPs and non-HTTPS to prevent SSRF */
+/** Reject private/internal IPs, non-HTTPS, and credential-bearing URLs to prevent SSRF */
 function validateWebhookUrl(url: string): void {
   let parsed: URL;
   try {
@@ -22,17 +22,29 @@ function validateWebhookUrl(url: string): void {
     throw new Error(`Webhook URL must use HTTPS: ${url}`);
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  // Block URLs with embedded credentials (https://user:pass@host)
+  if (parsed.username || parsed.password) {
+    throw new Error(`Webhook URL must not contain credentials: ${url}`);
+  }
 
-  // Block localhost
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") {
+  // Normalize hostname — strip brackets from IPv6
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  // Block localhost (IPv4 and IPv6)
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
     throw new Error(`Webhook URL must not target localhost: ${url}`);
   }
 
-  // Block private IP ranges (RFC 1918 + link-local + metadata)
+  // Block private IP ranges (RFC 1918 + link-local + metadata + IPv6 private)
   const privatePatterns = [
+    // IPv4 private
     /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
-    /^169\.254\./, /^0\./, /^127\./, /^fc00:/i, /^fd/i, /^fe80:/i,
+    // IPv4 link-local + metadata
+    /^169\.254\./, /^0\./, /^127\./,
+    // IPv6 private (fc00::/7 = fc00:: and fd00::)
+    /^fc/i, /^fd/i,
+    // IPv6 link-local
+    /^fe80:/i,
   ];
   for (const pattern of privatePatterns) {
     if (pattern.test(hostname)) {

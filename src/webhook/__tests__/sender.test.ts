@@ -86,6 +86,57 @@ describe("WebhookSender", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
+  describe("URL validation", () => {
+    it("rejects HTTP URLs", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("http://merchant.com/webhook", secret, makePayload())
+      ).rejects.toThrow("HTTPS");
+    });
+
+    it("rejects localhost", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://localhost/webhook", secret, makePayload())
+      ).rejects.toThrow("localhost");
+    });
+
+    it("rejects private IP 10.x", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://10.0.0.1/webhook", secret, makePayload())
+      ).rejects.toThrow("private");
+    });
+
+    it("rejects URLs with userinfo credentials", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://admin:password@internal.service/webhook", secret, makePayload())
+      ).rejects.toThrow("credentials");
+    });
+
+    it("rejects IPv6 loopback", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://[::1]/webhook", secret, makePayload())
+      ).rejects.toThrow("localhost");
+    });
+
+    it("rejects IPv6 private (fd00::)", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://[fd00::1]/webhook", secret, makePayload())
+      ).rejects.toThrow("private");
+    });
+
+    it("rejects cloud metadata endpoint", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://169.254.169.254/latest/meta-data/", secret, makePayload())
+      ).rejects.toThrow("private");
+    });
+  });
+
   it("body is valid JSON with correct payload", async () => {
     mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
     const payload = makePayload();
