@@ -35,11 +35,12 @@ const JSON_LIKE_PATTERN = /\{[^}]*"[^"]*"\s*:/g;
 const MAX_SUBJECT_LENGTH = 200;
 const MAX_BODY_LENGTH = 2000;
 
-// Strip zero-width characters and normalize Unicode to defeat homoglyph attacks.
+// Strip zero-width characters, directional overrides, variation selectors,
+// and other invisible Unicode chars used to bypass text-based blocklists.
 // eslint-disable-next-line no-misleading-character-class
-const ZERO_WIDTH_CHARS = /[\u200B\u200C\u200D\uFEFF]/g;
+const INVISIBLE_CHARS = /[\u200B\u200C\u200D\uFEFF\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2060\u2061\u2062\u2063\u2064\u2066\u2067\u2068\u2069\u206A\u206B\u206C\u206D\u206E\u206F\uFE00\uFE01\uFE02\uFE03\uFE04\uFE05\uFE06\uFE07\uFE08\uFE09\uFE0A\uFE0B\uFE0C\uFE0D\uFE0E\uFE0F]/g;
 function normalizeInput(text: string): string {
-  return text.replace(ZERO_WIDTH_CHARS, "").normalize("NFKC");
+  return text.replace(INVISIBLE_CHARS, "").normalize("NFKC");
 }
 
 /**
@@ -48,22 +49,70 @@ function normalizeInput(text: string): string {
  * homoglyph attacks, then removes known injection patterns, JSON-like content,
  * and truncates to safe lengths.
  */
-export function sanitizeEmailForLlm(subject: string, body: string): { sanitizedSubject: string; sanitizedBody: string } {
-  const sanitizedSubject = normalizeInput(subject)
-    .replace(INJECTION_PATTERNS, "[REMOVED]")
-    .replace(JSON_LIKE_PATTERN, "[REMOVED]")
-    .slice(0, MAX_SUBJECT_LENGTH);
+export function sanitizeEmailForLlm(subject: string, body: string): { sanitizedSubject: string; sanitizedBody: string; removedCount: number } {
+  let removedCount = 0;
 
-  const cleanedBody = normalizeInput(body)
-    .replace(INJECTION_PATTERNS, "[REMOVED]")
-    .replace(JSON_LIKE_PATTERN, "[REMOVED]");
+  function countAndReplace(text: string, pattern: RegExp, replacement: string): string {
+    return text.replace(pattern, () => {
+      removedCount++;
+      return replacement;
+    });
+  }
+
+  const normSubject = normalizeInput(subject);
+  const sanitizedSubject = countAndReplace(
+    countAndReplace(normSubject, INJECTION_PATTERNS, "[REMOVED]"),
+    JSON_LIKE_PATTERN,
+    "[REMOVED]",
+  ).slice(0, MAX_SUBJECT_LENGTH);
+
+  const normBody = normalizeInput(body);
+  const cleanedBody = countAndReplace(
+    countAndReplace(normBody, INJECTION_PATTERNS, "[REMOVED]"),
+    JSON_LIKE_PATTERN,
+    "[REMOVED]",
+  );
 
   const wasTruncated = cleanedBody.length > MAX_BODY_LENGTH;
   const sanitizedBody = wasTruncated
     ? cleanedBody.slice(0, MAX_BODY_LENGTH) + "\n[EMAIL_TRUNCATED]"
     : cleanedBody;
 
-  return { sanitizedSubject, sanitizedBody };
+  return { sanitizedSubject, sanitizedBody, removedCount };
+}
+
+/**
+ * Verify that an LLM-extracted amount actually appears in the original email body.
+ *
+ * This is a post-extraction defense against prompt injection: if the LLM
+ * claims the amount is X, but X doesn't appear anywhere in the email,
+ * the LLM may have been manipulated.
+ *
+ * Handles common Indian number formats: "499.37", "499", "50,000", "50,000.00"
+ */
+export function verifyAmountInSource(amount: number, emailBody: string): boolean {
+  // Try exact match with decimals: "499.37"
+  const exact = amount.toFixed(2);
+  if (emailBody.includes(exact)) return true;
+
+  // Try without trailing zeros: "499.37" -> "499.37", "500.00" -> "500"
+  const noTrailingZeros = parseFloat(exact).toString();
+  if (emailBody.includes(noTrailingZeros)) return true;
+
+  // Try with Indian comma formatting: 50000 -> "50,000"
+  const intPart = Math.floor(amount).toString();
+  const commaFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (emailBody.includes(commaFormatted)) return true;
+
+  // Try Indian lakh/crore formatting: 5000000 -> "50,00,000"
+  if (intPart.length > 3) {
+    const last3 = intPart.slice(-3);
+    const rest = intPart.slice(0, -3);
+    const indianFormatted = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3;
+    if (emailBody.includes(indianFormatted)) return true;
+  }
+
+  return false;
 }
 
 /**

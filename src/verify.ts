@@ -179,6 +179,30 @@ export async function verifyPayment(
     return unverifiedResult("NOT_PAYMENT_EMAIL", "LLM could not parse payment data from email");
   }
 
+  // ── Step 3.1: Post-extraction amount verification ──────────
+  // Defense against prompt injection: verify the LLM-extracted amount
+  // actually appears in the original email body. If not, the LLM may
+  // have been manipulated into reporting a different amount.
+  // Only applies when the expected amount is provided and differs from
+  // what was extracted — catches injection attacks where the LLM is
+  // tricked into reporting a completely fabricated amount.
+  if (parsed.isPaymentEmail && parsed.amount > 0) {
+    const { verifyAmountInSource } = await import("./llm/prompts.js");
+    const amountInSource = verifyAmountInSource(parsed.amount, email.body);
+    log?.log("amount_source_check", {
+      amount: parsed.amount,
+      found_in_body: amountInSource,
+    });
+    if (!amountInSource) {
+      log?.log("amount_source_warning", {
+        message: `LLM extracted amount ₹${parsed.amount} but it does not appear in the email body. Possible prompt injection or rounding.`,
+      });
+      // Lower confidence as a signal, but not below the 0.5 rejection threshold.
+      // The amount matching layer handles the actual rejection if amounts differ.
+      parsed.confidence = Math.min(parsed.confidence, 0.6);
+    }
+  }
+
   // ── Step 3.5: UTR hint matching ──────────────────────────────
   // If caller provided expectedUtrs, check if the LLM-extracted UTR matches.
   // A UTR match uses relaxed (5%) amount tolerance instead of exact match,
