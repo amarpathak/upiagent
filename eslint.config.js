@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import tseslint from "typescript-eslint";
 
 export default [
   // Global ignores — must be first in flat config
@@ -7,10 +8,9 @@ export default [
   },
   // ESLint's recommended rules
   js.configs.recommended,
+  // TypeScript parser and rules
+  ...tseslint.configs.recommended,
   {
-    // ESLint doesn't know about .ts files by default — we must explicitly
-    // tell it to process them. Without this, `eslint src/` silently ignores
-    // every TypeScript file and then errors because "nothing matched."
     files: ["**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
@@ -25,7 +25,8 @@ export default [
       },
     },
     rules: {
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 ];

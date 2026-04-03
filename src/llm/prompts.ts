@@ -36,6 +36,7 @@ const MAX_SUBJECT_LENGTH = 200;
 const MAX_BODY_LENGTH = 2000;
 
 // Strip zero-width characters and normalize Unicode to defeat homoglyph attacks.
+// eslint-disable-next-line no-misleading-character-class
 const ZERO_WIDTH_CHARS = /[\u200B\u200C\u200D\uFEFF]/g;
 function normalizeInput(text: string): string {
   return text.replace(ZERO_WIDTH_CHARS, "").normalize("NFKC");
