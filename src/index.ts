@@ -63,6 +63,7 @@ export { CostTracker } from "./utils/index.js";
 export { LlmRateLimiter } from "./utils/index.js";
 export { StepLogger } from "./utils/index.js";
 export { withRetry } from "./utils/index.js";
+export { validateGmailEnv, validateLlmEnv } from "./utils/index.js";
 export {
   UpiAgentError,
   GmailAuthError,

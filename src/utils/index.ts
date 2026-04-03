@@ -12,3 +12,4 @@ export {
   LlmBudgetExceededError,
   ConfigError,
 } from "./errors.js";
+export { validateGmailEnv, validateLlmEnv } from "./env.js";
