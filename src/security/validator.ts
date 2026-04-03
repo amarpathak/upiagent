@@ -52,8 +52,6 @@ export class SecurityValidator {
     emailReceivedAt?: Date,
     /** Optional email metadata — used for bank source validation */
     emailMeta?: { from?: string },
-    /** Optional flags to control layer execution */
-    flags?: { skipAmountLayer?: boolean },
   ): Promise<VerificationResult> {
     const layerResults: VerificationResult["layerResults"] = [];
 
@@ -75,16 +73,12 @@ export class SecurityValidator {
 
     // ── Layer 2: Amount Matching ────────────────────────────────
     // "Does the amount match what we expected?"
-    // Skipped when UTR hint matched — UTR is a stronger identifier than amount.
-    // All other layers (format, bank source, time, dedup) still run.
-    if (flags?.skipAmountLayer) {
-      layerResults.push({ layer: "amount", passed: true, details: "Skipped: UTR hint matched (stronger signal)" });
-    } else {
-      const amountResult = this.validateAmount(payment, request);
-      layerResults.push({ layer: "amount", ...amountResult });
-      if (!amountResult.passed) {
-        return this.buildResult(false, payment, layerResults, amountResult);
-      }
+    // Amount is ALWAYS checked — even with UTR match. UTR match uses
+    // relaxed tolerance (configured upstream) but never skips this layer.
+    const amountResult = this.validateAmount(payment, request);
+    layerResults.push({ layer: "amount", ...amountResult });
+    if (!amountResult.passed) {
+      return this.buildResult(false, payment, layerResults, amountResult);
     }
 
     // ── Layer 3: Time Window ────────────────────────────────────

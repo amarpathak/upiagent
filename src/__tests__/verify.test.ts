@@ -152,4 +152,72 @@ describe("verifyPayment", () => {
       expect(result.payment!.rawSubject).toBe("***");
     });
   });
+
+  describe("UTR hint matching", () => {
+    const makePayment = (amount: number, utr: string) => ({
+      amount,
+      upiReferenceId: utr,
+      senderName: "John Doe",
+      senderUpiId: "john@ybl",
+      bankName: "HDFC",
+      timestamp: new Date().toISOString(),
+      status: "success" as const,
+      rawSubject: "HDFC Bank Alert",
+      confidence: 0.9,
+      isPaymentEmail: true,
+    });
+
+    it("passes when UTR matches and amount is correct", async () => {
+      mockParse.mockResolvedValueOnce(makePayment(499.37, "412345678901"));
+
+      const result = await verifyPayment(testEmail, {
+        llm: testLlmConfig,
+        expected: { amount: 499.37 },
+        expectedUtrs: ["412345678901"],
+      });
+
+      expect(result.verified).toBe(true);
+      expect(result.matchedVia).toBe("utr_hint");
+    });
+
+    it("fails when UTR matches but amount is wildly different", async () => {
+      mockParse.mockResolvedValueOnce(makePayment(1, "412345678901"));
+
+      const result = await verifyPayment(testEmail, {
+        llm: testLlmConfig,
+        expected: { amount: 10000 },
+        expectedUtrs: ["412345678901"],
+      });
+
+      expect(result.verified).toBe(false);
+      expect(result.failureReason).toBe("AMOUNT_MISMATCH");
+    });
+
+    it("passes when UTR matches and amount is within relaxed tolerance", async () => {
+      // 499 vs 499.37 — within 5% relaxed tolerance for UTR match
+      mockParse.mockResolvedValueOnce(makePayment(499, "412345678901"));
+
+      const result = await verifyPayment(testEmail, {
+        llm: testLlmConfig,
+        expected: { amount: 499.37 },
+        expectedUtrs: ["412345678901"],
+      });
+
+      expect(result.verified).toBe(true);
+      expect(result.matchedVia).toBe("utr_hint");
+    });
+
+    it("still checks amount without UTR hint (exact match)", async () => {
+      mockParse.mockResolvedValueOnce(makePayment(499, "412345678901"));
+
+      const result = await verifyPayment(testEmail, {
+        llm: testLlmConfig,
+        expected: { amount: 499.37 },
+        // no expectedUtrs
+      });
+
+      expect(result.verified).toBe(false);
+      expect(result.failureReason).toBe("AMOUNT_MISMATCH");
+    });
+  });
 });

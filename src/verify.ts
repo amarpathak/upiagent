@@ -181,7 +181,8 @@ export async function verifyPayment(
 
   // ── Step 3.5: UTR hint matching ──────────────────────────────
   // If caller provided expectedUtrs, check if the LLM-extracted UTR matches.
-  // A UTR match is a stronger signal than amount — skip amount layer if matched.
+  // A UTR match uses relaxed (5%) amount tolerance instead of exact match,
+  // but NEVER skips amount validation entirely — prevents amount bypass attacks.
   let utrMatched = false;
   if (options.expectedUtrs && options.expectedUtrs.length > 0 && parsed.upiReferenceId) {
     const { normalizeUtr } = await import("./session/utr-parser.js");
@@ -189,8 +190,8 @@ export async function verifyPayment(
     utrMatched = options.expectedUtrs.some((hint) => normalizeUtr(hint) === extractedNorm);
     log?.log("utr_hint_check", {
       message: utrMatched
-        ? `UTR match! ${extractedNorm} matches customer hint — skipping amount check`
-        : `UTR ${extractedNorm} does not match hints — falling back to amount matching`,
+        ? `UTR match! ${extractedNorm} matches customer hint — using relaxed amount tolerance (5%)`
+        : `UTR ${extractedNorm} does not match hints — using exact amount matching`,
       extracted_utr: extractedNorm,
       expected_utrs: options.expectedUtrs,
       matched: utrMatched,
@@ -198,9 +199,16 @@ export async function verifyPayment(
   }
 
   // ── Step 4: Security validation ───────────────────────────────
+  // When UTR matches, allow 5% amount tolerance (handles rounding/fees)
+  // but never skip amount check entirely — that's an attack vector.
+  const UTR_MATCH_AMOUNT_TOLERANCE = 5;
+  const amountTolerance = utrMatched
+    ? Math.max(options.expected.amountTolerancePercent ?? 0, UTR_MATCH_AMOUNT_TOLERANCE)
+    : (options.expected.amountTolerancePercent ?? 0);
+
   const securityConfig: SecurityConfig = {
     timeWindowMinutes: options.expected.timeWindowMinutes,
-    amountTolerancePercent: options.expected.amountTolerancePercent,
+    amountTolerancePercent: amountTolerance,
   };
 
   const validator = new SecurityValidator(securityConfig, options.dedup);
@@ -213,12 +221,21 @@ export async function verifyPayment(
     },
     email.receivedAt,
     { from: email.from },
-    { skipAmountLayer: utrMatched },
   );
 
   // Tag how the payment was matched for tracing
   if (result.verified) {
     result.matchedVia = utrMatched ? "utr_hint" : "amount";
+
+    // Warn when UTR matched but amount differs — possible fraud attempt
+    if (utrMatched && Math.abs(parsed.amount - options.expected.amount) > 0.01) {
+      log?.log("utr_amount_warning", {
+        message: `UTR matched but amount differs: expected ₹${options.expected.amount}, got ₹${parsed.amount}. Passed within ${UTR_MATCH_AMOUNT_TOLERANCE}% tolerance.`,
+        expected_amount: options.expected.amount,
+        actual_amount: parsed.amount,
+        difference_percent: Math.abs((parsed.amount - options.expected.amount) / options.expected.amount * 100).toFixed(2),
+      });
+    }
   }
 
   log?.log("security_validation", {
