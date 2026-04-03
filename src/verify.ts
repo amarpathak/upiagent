@@ -220,7 +220,7 @@ export async function verifyPayment(
       lookbackMinutes: options.expected.timeWindowMinutes,
     },
     email.receivedAt,
-    { from: email.from },
+    { from: email.from, authResults: email.authResults },
   );
 
   // Tag how the payment was matched for tracing

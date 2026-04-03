@@ -47,6 +47,13 @@ export interface EmailMessage {
 
   /** When the email was received — used for time window verification */
   receivedAt: Date;
+
+  /**
+   * Raw Authentication-Results header from Gmail.
+   * Contains DKIM, SPF, and DMARC verification results.
+   * Used by the security validator to detect spoofed bank emails.
+   */
+  authResults?: string;
 }
 
 /**

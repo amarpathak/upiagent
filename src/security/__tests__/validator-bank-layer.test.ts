@@ -65,6 +65,62 @@ describe("SecurityValidator — bank source layer", () => {
     expect(result.verified).toBe(true);
   });
 
+  it("rejects known bank sender when DKIM fails", async () => {
+    const validator = new SecurityValidator({}, new InMemoryDedupStore());
+    const result = await validator.validate(
+      makePayment(),
+      { expectedAmount: 499.37 },
+      undefined,
+      {
+        from: "alerts@hdfcbank.net",
+        authResults: "dkim=fail; spf=pass; dmarc=fail",
+      }
+    );
+    expect(result.verified).toBe(false);
+    expect(result.failureReason).toBe("LOW_CONFIDENCE");
+    expect(result.failureDetails).toContain("DKIM");
+  });
+
+  it("passes known bank sender when DKIM/SPF/DMARC all pass", async () => {
+    const validator = new SecurityValidator({}, new InMemoryDedupStore());
+    const result = await validator.validate(
+      makePayment(),
+      { expectedAmount: 499.37 },
+      undefined,
+      {
+        from: "alerts@hdfcbank.net",
+        authResults: "dkim=pass; spf=pass; dmarc=pass",
+      }
+    );
+    expect(result.verified).toBe(true);
+  });
+
+  it("passes known bank sender when no auth headers present (backwards compat)", async () => {
+    const validator = new SecurityValidator({}, new InMemoryDedupStore());
+    const result = await validator.validate(
+      makePayment(),
+      { expectedAmount: 499.37 },
+      undefined,
+      { from: "alerts@hdfcbank.net" }
+    );
+    expect(result.verified).toBe(true);
+  });
+
+  it("rejects unknown sender with failed auth even with high confidence", async () => {
+    const validator = new SecurityValidator({}, new InMemoryDedupStore());
+    const result = await validator.validate(
+      makePayment({ confidence: 0.95 }),
+      { expectedAmount: 499.37 },
+      undefined,
+      {
+        from: "unknown@randombank.com",
+        authResults: "dkim=fail; spf=fail; dmarc=fail",
+      }
+    );
+    expect(result.verified).toBe(false);
+    expect(result.failureDetails).toContain("DKIM");
+  });
+
   it("includes bank_source in layer results", async () => {
     const validator = new SecurityValidator({}, new InMemoryDedupStore());
     const result = await validator.validate(

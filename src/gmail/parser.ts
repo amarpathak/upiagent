@@ -137,6 +137,7 @@ export function parseGmailMessage(message: gmail_v1.Schema$Message): EmailMessag
   const subject = headers.find((h) => h.name?.toLowerCase() === "subject")?.value ?? "";
   const from = headers.find((h) => h.name?.toLowerCase() === "from")?.value ?? "";
   const dateStr = headers.find((h) => h.name?.toLowerCase() === "date")?.value;
+  const authResults = headers.find((h) => h.name?.toLowerCase() === "authentication-results")?.value;
 
   // internalDate is Gmail's own timestamp (milliseconds since epoch).
   // More reliable than the Date header which can be spoofed by the sender.
@@ -155,5 +156,6 @@ export function parseGmailMessage(message: gmail_v1.Schema$Message): EmailMessag
     body,
     from,
     receivedAt,
+    ...(authResults ? { authResults } : {}),
   };
 }
