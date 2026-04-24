@@ -13,15 +13,8 @@
  *   4. Set PUBSUB_TOPIC_NAME=projects/YOUR_PROJECT/topics/YOUR_TOPIC in env
  *   5. Call GmailClient.watch(topicName) once per merchant to activate
  */
-import { createClient } from "@supabase/supabase-js";
 import { GmailClient, decrypt, isEncrypted, verifyPayment } from "@upiagent/core";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { getSupabase } from "@/lib/supabase";
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 function getLlmApiKey() {

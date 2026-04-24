@@ -11,14 +11,7 @@
  *   verified    — payment confirmed (includes payment data)
  *   expired     — timed out, no payment found
  */
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { getSupabase } from "@/lib/supabase";
 
 const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 const HEARTBEAT_MS = 30 * 1000;

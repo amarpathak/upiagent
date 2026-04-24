@@ -1,14 +1,7 @@
 // apps/www/src/app/api/demo/route.ts
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createPayment, GmailClient, decrypt, isEncrypted } from "@upiagent/core";
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { getSupabase } from "@/lib/supabase";
 
 const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 const PUBSUB_TOPIC_NAME = process.env.PUBSUB_TOPIC_NAME || "";
