@@ -99,3 +99,12 @@ export type {
   WebhookDeliveryResult,
   WebhookConfig,
 } from "./webhook/index.js";
+
+// Client SDK — thin wrapper around the UpiAgent SaaS API
+export { UpiAgent, UpiAgentApiError } from "./client.js";
+export type {
+  UpiAgentConfig,
+  CreatePaymentParams,
+  Payment,
+  VerifyResult,
+} from "./client.js";
