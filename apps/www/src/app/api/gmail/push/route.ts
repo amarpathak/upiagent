@@ -16,7 +16,6 @@
 import { GmailClient, decrypt, isEncrypted, verifyPayment } from "@upiagent/core";
 import { getSupabase } from "@/lib/supabase";
 
-const DEMO_UPI_ID = process.env.DEMO_UPI_ID || "demo@ybl";
 function getLlmApiKey() {
   return process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "";
 }
@@ -69,111 +68,110 @@ async function handlePush(req: Request) {
 
   const supabase = getSupabase();
 
-  // Load merchant credentials
-  const { data: merchant } = await supabase
+  // Find all merchants with Gmail configured
+  const { data: merchants } = await supabase
     .from("merchants")
     .select("id, upi_id, gmail_client_id, gmail_client_secret, gmail_refresh_token, llm_api_key")
-    .eq("upi_id", DEMO_UPI_ID)
-    .not("gmail_refresh_token", "is", null)
-    .limit(1)
-    .single();
+    .not("gmail_refresh_token", "is", null);
 
-  if (!merchant?.gmail_refresh_token) {
-    console.error("[gmail/push] Demo merchant not configured");
+  if (!merchants || merchants.length === 0) {
+    console.log("[gmail/push] No merchants with Gmail configured");
     return new Response("ok");
   }
 
-  let clientSecret: string;
-  let refreshToken: string;
-  let llmKey: string;
+  for (const merchant of merchants) {
+    let clientSecret: string;
+    let refreshToken: string;
+    let llmKey: string;
 
-  try {
-    const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
-    clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
-      ? decrypt(merchant.gmail_client_secret, encKey)
-      : merchant.gmail_client_secret;
-    refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
-      ? decrypt(merchant.gmail_refresh_token, encKey)
-      : merchant.gmail_refresh_token;
-    llmKey = (encKey && merchant.llm_api_key && isEncrypted(merchant.llm_api_key)
-      ? decrypt(merchant.llm_api_key, encKey)
-      : merchant.llm_api_key) || getLlmApiKey();
-  } catch (err) {
-    console.error("[gmail/push] Decryption failed — check CREDENTIALS_ENCRYPTION_KEY:", err instanceof Error ? err.message : err);
-    return new Response("ok");
-  }
+    try {
+      const encKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+      clientSecret = encKey && isEncrypted(merchant.gmail_client_secret)
+        ? decrypt(merchant.gmail_client_secret, encKey)
+        : merchant.gmail_client_secret;
+      refreshToken = encKey && isEncrypted(merchant.gmail_refresh_token)
+        ? decrypt(merchant.gmail_refresh_token, encKey)
+        : merchant.gmail_refresh_token;
+      llmKey = (encKey && merchant.llm_api_key && isEncrypted(merchant.llm_api_key)
+        ? decrypt(merchant.llm_api_key, encKey)
+        : merchant.llm_api_key) || getLlmApiKey();
+    } catch (err) {
+      console.error(`[gmail/push] Decryption failed for merchant ${merchant.id}:`, err instanceof Error ? err.message : err);
+      continue;
+    }
 
-  if (!llmKey) {
-    console.error("[gmail/push] No LLM key configured");
-    return new Response("ok");
-  }
+    if (!llmKey) {
+      console.error(`[gmail/push] No LLM key configured for merchant ${merchant.id}`);
+      continue;
+    }
 
-  // Check pending payments in Supabase (not in-memory — works across instances)
-  const { data: pendingPayments } = await supabase
-    .from("payments")
-    .select("transaction_id, amount_with_paisa")
-    .eq("merchant_id", merchant.id)
-    .eq("status", "pending")
-    .gt("expires_at", new Date().toISOString());
+    // Check pending payments in Supabase (not in-memory — works across instances)
+    const { data: pendingPayments } = await supabase
+      .from("payments")
+      .select("transaction_id, amount_with_paisa")
+      .eq("merchant_id", merchant.id)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString());
 
-  if (!pendingPayments || pendingPayments.length === 0) {
-    console.log("[gmail/push] No pending verifications for merchant, ignoring");
-    return new Response("ok");
-  }
+    if (!pendingPayments || pendingPayments.length === 0) {
+      console.log(`[gmail/push] No pending verifications for merchant ${merchant.id}, skipping`);
+      continue;
+    }
 
-  // Fetch only new emails since historyId
-  const gmailClient = new GmailClient({
-    clientId: merchant.gmail_client_id || process.env.GMAIL_CLIENT_ID!,
-    clientSecret,
-    refreshToken,
-  });
+    // Fetch only new emails since historyId
+    const gmailClient = new GmailClient({
+      clientId: merchant.gmail_client_id || process.env.GMAIL_CLIENT_ID!,
+      clientSecret,
+      refreshToken,
+    });
 
-  let newEmails;
-  try {
-    newEmails = await gmailClient.fetchSinceHistory(historyId);
-  } catch (err) {
-    console.error("[gmail/push] fetchSinceHistory failed:", err instanceof Error ? err.message : err);
-    return new Response("ok");
-  }
+    let newEmails;
+    try {
+      newEmails = await gmailClient.fetchSinceHistory(historyId);
+    } catch (err) {
+      console.error(`[gmail/push] fetchSinceHistory failed for merchant ${merchant.id}:`, err instanceof Error ? err.message : err);
+      continue;
+    }
 
-  if (newEmails.length === 0) {
-    console.log("[gmail/push] No new bank alert emails in this push");
-    return new Response("ok");
-  }
+    if (newEmails.length === 0) {
+      console.log(`[gmail/push] No new bank alert emails for merchant ${merchant.id}`);
+      continue;
+    }
 
-  console.log(`[gmail/push] ${newEmails.length} new email(s), ${pendingPayments.length} pending verification(s)`);
+    console.log(`[gmail/push] ${newEmails.length} new email(s), ${pendingPayments.length} pending verification(s) for merchant ${merchant.id}`);
 
-  // Try each pending verification against each new email
-  for (const pending of pendingPayments) {
-    for (const email of newEmails) {
-      const result = await verifyPayment(email, {
-        llm: {
-          provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "gemini",
-          model: process.env.OPENROUTER_API_KEY ? "google/gemini-2.0-flash-001" : "gemini-2.0-flash",
-          apiKey: process.env.OPENROUTER_API_KEY || llmKey,
-        },
-        expected: { amount: pending.amount_with_paisa, timeWindowMinutes: 30 },
-        preset: "demo",
-      });
+    // Try each pending verification against each new email
+    for (const pending of pendingPayments) {
+      for (const email of newEmails) {
+        const result = await verifyPayment(email, {
+          llm: {
+            provider: process.env.OPENROUTER_API_KEY ? "openrouter" : "gemini",
+            model: process.env.OPENROUTER_API_KEY ? "google/gemini-2.0-flash-001" : "gemini-2.0-flash",
+            apiKey: process.env.OPENROUTER_API_KEY || llmKey,
+          },
+          expected: { amount: pending.amount_with_paisa, timeWindowMinutes: 30 },
+          preset: "demo",
+        });
 
-      if (result.verified && result.payment) {
-        console.log(`[gmail/push] ✓ Verified ${pending.transaction_id} — ₹${result.payment.amount}`);
+        if (result.verified && result.payment) {
+          console.log(`[gmail/push] ✓ Verified ${pending.transaction_id} — ₹${result.payment.amount}`);
 
-        // Update payment in Supabase — the SSE stream will pick this up
-        await supabase
-          .from("payments")
-          .update({
-            status: "verified",
-            upi_reference_id: result.payment.upiReferenceId,
-            sender_name: result.payment.senderName,
-            bank_name: result.payment.bankName,
-            overall_confidence: result.confidence,
-            verified_at: new Date().toISOString(),
-          })
-          .eq("transaction_id", pending.transaction_id)
-          .eq("status", "pending"); // atomic — only update if still pending
+          // Update payment in Supabase — the SSE stream will pick this up
+          await supabase
+            .from("payments")
+            .update({
+              status: "verified",
+              upi_reference_id: result.payment.upiReferenceId,
+              sender_name: result.payment.senderName,
+              bank_name: result.payment.bankName,
+              overall_confidence: result.confidence,
+              verified_at: new Date().toISOString(),
+            })
+            .eq("transaction_id", pending.transaction_id)
+            .eq("status", "pending"); // atomic — only update if still pending
 
-        break;
+          break;
+        }
       }
     }
   }
