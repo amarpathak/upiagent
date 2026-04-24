@@ -25,9 +25,8 @@ No payment gateway SDK. No webhooks from a third party. No merchant onboarding. 
 ## Table of Contents
 
 - [Install](#install)
-- [Prerequisites](#prerequisites)
-- [Environment Setup](#environment-setup)
-- [Quick Start](#quick-start)
+- [Quick Start (SaaS API)](#quick-start-saas-api)
+- [Self-Hosted Mode](#self-hosted-mode)
 - [LLM Providers](#llm-providers)
 - [Gmail Setup](#gmail-setup)
 - [API Reference](#api-reference)
@@ -56,15 +55,98 @@ npm install upiagent
 
 ---
 
-## Prerequisites
+## Quick Start (SaaS API)
+
+The fastest way to accept UPI payments. Get an API key from [dashboard.upiagent.dev](https://dashboard.upiagent.dev) and start accepting payments in 5 minutes.
+
+```ts
+import { UpiAgent } from "upiagent/client";
+
+const upi = new UpiAgent({ apiKey: "upi_ak_..." });
+
+// 1. Create a payment with QR code
+const payment = await upi.createPayment({
+  amount: 499,
+  note: "Order #123",
+  addPaisa: true, // unique amount matching
+});
+
+// 2. Show QR to customer
+// payment.qrDataUrl → base64 PNG for <img>
+// payment.intentUrl → upi://pay?... for mobile deep link
+
+// 3. After customer pays, trigger verification
+const result = await upi.verify(payment.id);
+if (result.verified) {
+  console.log("Paid!", result.payment.upiReferenceId);
+}
+
+// 4. Or poll status
+const status = await upi.getStatus(payment.id);
+// status.status === "verified" | "pending" | "expired"
+```
+
+### One-step: Create and wait
+
+```ts
+const payment = await upi.createAndWaitForPayment(
+  { amount: 499, addPaisa: true },
+  {
+    onPaymentCreated: (p) => showQR(p.qrDataUrl),
+    onStatusUpdate: (s) => console.log(s.status),
+    pollInterval: 5000,
+    timeout: 180_000,
+  },
+);
+
+if (payment.status === "verified") {
+  console.log("Payment confirmed!", payment.upiReferenceId);
+}
+```
+
+### Next.js Integration
+
+```ts
+// app/api/pay/route.ts
+import { UpiAgent } from "upiagent/client";
+
+const upi = new UpiAgent({ apiKey: process.env.UPIAGENT_API_KEY! });
+
+export async function POST(req: Request) {
+  const { amount, orderId } = await req.json();
+  const payment = await upi.createPayment({
+    amount,
+    note: `Order ${orderId}`,
+    addPaisa: true,
+  });
+  return Response.json(payment);
+}
+
+// app/api/pay/[id]/route.ts
+export async function POST(req: Request, { params }) {
+  const { id } = await params;
+  return Response.json(await upi.verify(id));
+}
+
+export async function GET(req: Request, { params }) {
+  const { id } = await params;
+  return Response.json(await upi.getStatus(id));
+}
+```
+
+---
+
+## Self-Hosted Mode
+
+Use the full engine without the SaaS. You'll need to set up Gmail OAuth and an LLM API key yourself.
+
+### Prerequisites
 
 - **Node.js >= 18** — the package uses ESM and native `fetch`.
 - **Gmail OAuth credentials** — a Google Cloud project with the Gmail API enabled, plus a refresh token for the merchant's inbox. See [Gmail Setup](#gmail-setup).
 - **At least one LLM API key** — OpenAI, Anthropic, Google Gemini, or OpenRouter. See [LLM Providers](#llm-providers).
 
----
-
-## Environment Setup
+### Environment Setup
 
 Copy `.env.example` to `.env` and fill in your credentials:
 
@@ -93,9 +175,7 @@ const llm = validateLlmEnv(); // auto-detects provider from whichever key is set
 
 `validateLlmEnv` checks keys in order: `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → `GOOGLE_GENERATIVE_AI_API_KEY` → `OPENROUTER_API_KEY`. It picks the first one found and sets a sensible default model.
 
----
-
-## Quick Start
+### Self-Hosted Quick Start
 
 ```ts
 import { createPayment, fetchAndVerifyPayment } from "upiagent";
