@@ -25,4 +25,21 @@ coverage/
 
 # Turbo cache
 .turbo/
-.worktrees
+
+# Worktrees
+.worktrees/
+
+# Next.js
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Supabase
+supabase/.temp/
+
+# Misc
+*.log
+*.tsbuildinfo
