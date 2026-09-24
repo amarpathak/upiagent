@@ -34,13 +34,25 @@ pending ──20 min──> expired        pending ──cancel──> cancelled
 |---|---|---|
 | `pending` | Created, not paid yet | No |
 | `claimed` | Customer's screenshot passed every check: success status, exact amount, paid **to you**, paid after the request was created, UTR never used, image never submitted before | Low-value goods |
-| `verified` | Confirmed by your bank (Gmail alert or the Android notification app) | Anything |
+| `verified` | Confirmed by your bank: a bank alert in your inbox (or the Android app) carries the payment — for a claimed payment, the screenshot's **exact UTR and amount** | Anything |
 | `expired` | Not paid within 20 minutes | No |
 | `cancelled` | Cancelled while pending | No |
 
 A well-forged screenshot can pass the `claimed` checks; `verified` exists
 because bank evidence cannot be forged from the customer's side. A `claimed`
-payment is upgraded to `verified` automatically when bank evidence arrives.
+payment becomes `verified` only when a bank alert from a known bank sender
+(DKIM/DMARC-authenticated, received after the payment was created) contains
+the screenshot's UTR and the exact amount. That happens the moment the alert
+arrives (Gmail push) — nothing polls.
+
+### Verification modes
+
+Set per merchant in Dashboard → Settings:
+
+| Mode | Pending payment is verified by | Incoming bank mail costs |
+|---|---|---|
+| `screenshot` | the customer's screenshot, then its UTR in your bank alert | nothing — exact UTR matching, no LLM |
+| `auto` (default) | a bank alert with the exact amount (use `addPaisa`), or a screenshot as above | ≤ 1 LLM extraction per new bank email |
 
 ---
 
@@ -122,18 +134,24 @@ Returns a **Payment**. Reading a pending payment past its deadline marks it
 `claimedAt` and `verifiedAt` appear once the payment is `claimed` or
 `verified`. Nullable fields may be `null`.
 
-### Trigger verification — `POST /api/v1/payments/:id`
+### Check now — `POST /api/v1/payments/:id`
 
-Checks the merchant's Gmail for a matching bank alert right now instead of
-waiting for push. **Spends LLM tokens.** Usually unnecessary: Gmail push and
-the Android app verify automatically.
+One inbox check right now, for a "check again" button. Never call it on a
+timer: Gmail push and the Android app verify automatically.
+
+- **claimed** → one Gmail search for the screenshot's exact UTR. No LLM
+  unless a trusted bank email's text can't be read deterministically.
+- **pending**, `auto` mode → amount match over recent bank alerts (spends
+  LLM tokens).
+- **pending**, `screenshot` mode → nothing to check; returns a message
+  asking for the screenshot.
 
 ```json
 { "verified": true, "status": "verified", "payment": { "amount": 499.37, "upiReferenceId": "412345678901", "senderName": "R***a", "bankName": "HDFC Bank", "confidence": 0.95 } }
 ```
 
 ```json
-{ "verified": false, "status": "pending", "message": "No matching payment found for amount 499.37" }
+{ "verified": false, "status": "claimed", "message": "No bank email containing UTR 412345678901 yet." }
 ```
 
 ### Cancel a payment — `DELETE /api/v1/payments/:id`
@@ -147,8 +165,15 @@ claimed, verified, expired or cancelled.
 
 ### `POST /api/v1/payments/:id/proof`
 
-Submit the customer's UPI payment screenshot. One vision model call reads it;
-deterministic checks then decide. A pass moves the payment to `claimed`.
+Submit the customer's UPI payment screenshot — the manual-verification
+endpoint (the MCP tool `upiagent_submit_payment_proof` does the same). One
+vision model call reads it; deterministic checks then decide. A pass moves
+the payment to `claimed`, and its UTR is immediately looked up in your bank
+alerts: if the alert is already there the response says `verified`,
+otherwise the payment turns `verified` when the alert arrives.
+
+The original image is stored as evidence (private storage, see
+[Evidence](#evidence)) whether or not it is accepted.
 
 ```bash
 curl -X POST https://beta.upiagent.live/api/v1/payments/$ID/proof \
@@ -172,7 +197,8 @@ curl -X POST https://beta.upiagent.live/api/v1/payments/$ID/proof \
     "UTR 412345678901 read.",
     "Amount ₹499.37 matches.",
     "Payee UPI ID matches the merchant.",
-    "Payment time is inside the request window."
+    "Payment time is inside the request window.",
+    "Not yet confirmed by the bank: No bank email containing UTR 412345678901 yet."
   ]
 }
 ```
@@ -190,7 +216,8 @@ at lower confidence.
 
 Submitting proof for a payment that is already `claimed`/`verified` returns
 its current state without a model call. The daily token cap is checked
-**before** the vision call. Success triggers a `payment.claimed` webhook.
+**before** the vision call. Success triggers `payment.claimed`, and
+`payment.verified` once the bank alert matches.
 
 ---
 
@@ -198,11 +225,20 @@ its current state without a model call. The daily token cap is checked
 
 ### `GET /api/v1/payments/:id/evidence`
 
-Which sources matched and with what confidence, newest first (max 20). Never
-includes raw email or image content.
+Which sources matched and with what confidence, newest first (max 20).
+Never includes raw email content. Screenshot evidence carries `imageUrl`, a
+signed link to the original image that expires after 5 minutes (fetch the
+evidence again for a fresh one).
 
 ```json
-{ "evidence": [ { "source": "screenshot", "status": "match", "confidence": 0.92, "createdAt": "2026-09-24T18:02:40.000Z" } ] }
+{
+  "evidence": [
+    { "source": "gmail", "status": "match", "confidence": 1, "createdAt": "2026-09-24T18:03:12.000Z", "utr": "412345678901",
+      "reasons": ["Bank sender alerts@hdfcbank.net, dkim pass.", "Contains UTR 412345678901.", "Credit of exactly ₹499.37."] },
+    { "source": "screenshot", "status": "match", "confidence": 0.92, "createdAt": "2026-09-24T18:02:40.000Z", "utr": "412345678901",
+      "imageUrl": "https://…/payment-proofs/…?token=…", "reasons": ["UTR 412345678901 read.", "Amount ₹499.37 matches."] }
+  ]
+}
 ```
 
 `source`: `gmail` · `notification` · `screenshot`. `status`: `match` ·
@@ -277,7 +313,7 @@ quickly and dedupe on `deliveryId`.
 |---|---|
 | Create payment | 60 / minute per merchant |
 | Payment lifetime | 20 minutes, then `expired` |
-| Trigger verification | 10 / minute, 100 / hour per merchant |
+| Check now | 10 / minute, 100 / hour per merchant |
 | Screenshot proof | 10 / minute, 120 / hour per merchant; 3 MB image |
 | LLM tokens | 20,000 / day per merchant by default; resets 00:00 UTC |
 

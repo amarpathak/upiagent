@@ -227,6 +227,23 @@ export class GmailClient {
    * 1. Search for message IDs (lightweight)
    * 2. Fetch full content for each ID (parallel)
    */
+  /**
+   * Bank alerts that contain an exact term — used to find the alert for a
+   * specific UTR. The term must be digits only (it is placed in a Gmail
+   * query), so callers pass a normalised 12-digit UTR.
+   */
+  async findBankAlertsContaining(
+    digits: string,
+    options: { lookbackMinutes?: number; maxResults?: number } = {},
+  ): Promise<EmailMessage[]> {
+    if (!/^\d{6,20}$/.test(digits)) throw new Error("findBankAlertsContaining: term must be 6-20 digits");
+    return this.fetchBankAlerts({
+      lookbackMinutes: options.lookbackMinutes ?? 24 * 60,
+      maxResults: options.maxResults ?? 5,
+      query: `(${this.searchQuery}) "${digits}"`,
+    });
+  }
+
   async fetchBankAlerts(options: GmailSearchOptions = {}): Promise<EmailMessage[]> {
     const { lookbackMinutes = 30, maxResults = 10, query } = options;
 

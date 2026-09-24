@@ -33,6 +33,11 @@ const DEFAULT_POLL_INTERVAL_MS = 5_000;      // 5 seconds
 const DEFAULT_UTR_DELAY_MS = 20_000;          // 20 seconds
 
 /**
+ * @deprecated Polls Gmail (and the LLM) on a timer. Prefer push: have Gmail
+ * Pub/Sub notify your server, run `extractPayment` + `matchParsedPayment` on
+ * the new emails, and confirm screenshot/UTR claims with the one-shot
+ * `confirmPaymentByUtr`. Kept for existing callers; will be removed in 1.0.
+ *
  * Create a managed verification session.
  *
  * The session polls Gmail for bank alerts using amount matching first.

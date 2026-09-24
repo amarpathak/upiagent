@@ -76,17 +76,20 @@ const payment = await upi.createPayment({
 // payment.qrDataUrl → base64 PNG for <img>
 // payment.intentUrl → upi://pay?... for mobile deep link
 
-// 3. Poll status (free) — or receive a webhook
+// 3. Receive a webhook (payment.claimed / payment.verified) — or read the
+//    status when you need it (free; don't loop on it)
 const status = await upi.getStatus(payment.id);
 // status.status: "pending" | "claimed" | "verified" | "expired" | "cancelled"
 //   claimed  → customer's screenshot passed every check (OK for low-value goods)
-//   verified → confirmed by your bank (OK for anything)
+//   verified → your bank alert carries the payment — for a screenshot, its exact UTR and amount
 
 // 4. Optional: settle instantly from the customer's payment screenshot
 const proof = await upi.submitProof(payment.id, { image: screenshotDataUrl });
+// proof.status "verified" when the bank alert with its UTR is already in;
+// "claimed" until it arrives (then it turns verified by itself)
 if (!proof.accepted) console.log("Do not deliver:", proof.reasons);
 
-// Also: upi.verify(id) (check Gmail now; spends LLM tokens), upi.cancel(id),
+// Also: upi.verify(id) (one inbox check now: exact UTR for claimed payments), upi.cancel(id),
 // upi.listPayments({ status, since, limit, cursor }), upi.getEvidence(id), upi.getUsage()
 ```
 
@@ -96,13 +99,16 @@ malformed response or an API error throws `UpiAgentApiError` (`message`,
 
 ### One-step: Create and wait
 
+For scripts. It only reads status — never triggers verification — with
+backed-off, capped reads (`maxChecks`, default 20) and an optional
+`signal: AbortSignal`. Prefer webhooks in servers.
+
 ```ts
 const payment = await upi.createAndWaitForPayment(
   { amount: 499, addPaisa: true },
   {
     onPaymentCreated: (p) => showQR(p.qrDataUrl),
     onStatusUpdate: (s) => console.log(s.status),
-    pollInterval: 5000,
     timeout: 180_000,
   },
 );
@@ -178,7 +184,8 @@ Hosted (HTTP): `https://beta.upiagent.live/api/mcp` with `Authorization: Bearer 
 Payments move `pending → claimed → verified`: **claimed** means the screenshot
 passed every check (exact amount, paid to you, inside the time window, unused
 UTR) and is fine for low-value goods; **verified** means your bank confirmed
-it. A rejected proof means do not deliver.
+it (a bank alert with the screenshot's exact UTR and amount). A rejected
+proof means do not deliver.
 
 You can also embed the server: `import { createMcpServer, UPIAGENT_TOOLS } from "upiagent/mcp"`.
 
@@ -599,6 +606,32 @@ const verdict = adjudicateProof(read, {                   // pure, deterministic
 });
 // verdict: { accepted, utr, confidence, reasons[] } — also check verdict.utr is unused in your store
 ```
+
+### Confirm a screenshot against the bank alert (UTR)
+
+A screenshot can be forged; the bank's email can't. `confirmPaymentByUtr`
+does one Gmail search for the UTR and accepts an email only if it is from a
+known bank sender, passes DKIM/DMARC, arrived after the payment was
+created, and contains that exact UTR and the exact amount. Call it once
+after a proof, and again from your Gmail push handler — never on a timer.
+
+```ts
+import { GmailClient, confirmPaymentByUtr } from "upiagent";
+
+const gmail = new GmailClient({ clientId, clientSecret, refreshToken });
+const result = await confirmPaymentByUtr(gmail, {
+  utr: verdict.utr!,
+  amount: 499.37,
+  notBefore: paymentCreatedAt,
+});
+// { confirmed, reasons[], emailId?, emailsChecked, method?: "text" | "llm" }
+```
+
+Pass `{ llm }` to allow an LLM read of a trusted bank email whose text
+couldn't be matched exactly; the extracted UTR and amount must still equal
+the expected ones. For emails you already have (e.g. from push),
+`checkBankEmailForUtr(email, expected)` is the synchronous,
+LLM-free check.
 
 ---
 

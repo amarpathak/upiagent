@@ -49,7 +49,7 @@ function forAgent(p: Payment): z.input<typeof agentPaymentSchema> {
 }
 
 const STATUS_GUIDE =
-  "Statuses: pending (not paid yet) → claimed (customer's screenshot passed all checks; OK to release low-value goods) → verified (bank-confirmed; OK to release anything). expired/cancelled are final.";
+  "Statuses: pending (not paid yet) → claimed (customer's screenshot passed all checks; its UTR is being matched to the merchant's bank alert; OK to release low-value goods) → verified (a bank alert with that exact UTR and amount was found; OK to release anything). expired/cancelled are final.";
 
 export const createPaymentTool = defineTool({
   name: "upiagent_create_payment",
@@ -90,7 +90,7 @@ export const submitPaymentProofTool = defineTool({
   name: "upiagent_submit_payment_proof",
   title: "Submit payment screenshot",
   description:
-    "Check the customer's UPI payment screenshot against a pending payment: success status, exact amount, paid to this merchant, paid after the request was created, and a UTR never used before. If accepted is true the payment becomes claimed and low-value goods may be released now. If accepted is false, do NOT deliver the goods — tell the customer the reasons and wait for bank confirmation or a correct screenshot. This is the only tool that spends LLM tokens (one vision call); check upiagent_get_usage if unsure of budget.",
+    "Check the customer's UPI payment screenshot against a pending payment: success status, exact amount, paid to this merchant, paid after the request was created, and a UTR never used before. The original image is kept as evidence. If accepted is true the payment becomes claimed and the screenshot's UTR is immediately looked up in the merchant's bank alerts: status verified means the bank confirmed it; claimed means low-value goods may be released now and it will turn verified by itself when the bank alert arrives. If accepted is false, do NOT deliver the goods — tell the customer the reasons and wait for bank confirmation or a correct screenshot. This is the only tool that spends LLM tokens (one vision call); check upiagent_get_usage if unsure of budget.",
   inputSchema: z.object({
     paymentId,
     image: z.string().min(100).max(4_300_000).describe("The screenshot as base64 or a data: URL (PNG, JPEG or WebP, max 3 MB)."),
@@ -105,7 +105,7 @@ export const submitPaymentProofTool = defineTool({
 export const getPaymentStatusTool = defineTool({
   name: "upiagent_get_payment_status",
   title: "Get payment status",
-  description: `Current status of a payment and its evidence trail (which sources — gmail, notification, screenshot — matched and with what confidence). A pure read: spends no LLM tokens, so it is fine to call repeatedly while waiting for a customer to pay. ${STATUS_GUIDE}`,
+  description: `Current status of a payment and its evidence trail (which sources — gmail, notification, screenshot — matched and with what confidence). A pure read that spends no LLM tokens. Status changes are pushed server-side, so check at natural moments (the customer says they paid, after a proof) rather than in a tight loop — at most every 30 seconds. ${STATUS_GUIDE}`,
   inputSchema: z.object({ paymentId }),
   outputSchema: z.object({ payment: agentPaymentSchema, evidence: z.array(paymentEvidenceSchema) }),
   annotations: { readOnlyHint: true, openWorldHint: false },
@@ -150,7 +150,7 @@ export const cancelPaymentTool = defineTool({
 export const getUsageTool = defineTool({
   name: "upiagent_get_usage",
   title: "Get LLM usage",
-  description: "Today's LLM token usage against the merchant's daily limit. Only screenshot proofs spend tokens; when remaining is low, prefer waiting for bank confirmation (poll upiagent_get_payment_status) over submitting screenshots.",
+  description: "Today's LLM token usage against the merchant's daily limit. Only screenshot proofs spend tokens; when remaining is low, prefer waiting for bank confirmation (check upiagent_get_payment_status occasionally) over submitting screenshots.",
   inputSchema: z.object({}),
   outputSchema: usageSchema,
   annotations: { readOnlyHint: true, openWorldHint: false },
@@ -169,7 +169,7 @@ export const UPIAGENT_TOOLS: McpTool<any, any, UpiAgentBackend>[] = [
 
 export const UPIAGENT_MCP_INSTRUCTIONS = [
   "upiagent lets you take UPI payments in India with no payment gateway.",
-  "Flow: upiagent_create_payment → give the customer the intentUrl and exact amount → either the customer sends a payment screenshot (upiagent_submit_payment_proof) or you poll upiagent_get_payment_status until bank evidence arrives.",
+  "Flow: upiagent_create_payment → give the customer the intentUrl and exact amount → either the customer sends a payment screenshot (upiagent_submit_payment_proof) or bank evidence arrives on its own; check upiagent_get_payment_status when the customer says they have paid.",
   STATUS_GUIDE,
   "Never deliver goods on a rejected proof.",
 ].join(" ");

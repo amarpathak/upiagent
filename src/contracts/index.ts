@@ -90,6 +90,12 @@ export const paymentEvidenceSchema = z.object({
   status: z.string(),
   confidence: z.number().nullable(),
   createdAt: z.string(),
+  /** UTR this evidence refers to, when one was read. */
+  utr: z.string().nullable().optional(),
+  /** Screenshot evidence: short-lived (5 min) signed URL of the original image. */
+  imageUrl: z.string().nullable().optional(),
+  /** Human-readable reasons behind the result. */
+  reasons: z.array(z.string()).optional(),
 });
 export type PaymentEvidence = z.infer<typeof paymentEvidenceSchema>;
 

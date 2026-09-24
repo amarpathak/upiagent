@@ -63,3 +63,51 @@ describe("UpiAgent client", () => {
     expect(mockFetch.mock.calls[0]![0]).toBe("https://api.example.com/api/v1/payments/..%2Fadmin");
   });
 });
+
+describe("createAndWaitForPayment", () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  const status = (s: string) => ({ ...created, note: null, status: s });
+
+  it("only reads status — never triggers verification — and returns on verified", async () => {
+    reply(201, created);
+    reply(200, status("pending"));
+    reply(200, status("claimed"));
+    reply(200, status("verified"));
+    const upi = new UpiAgent({ apiKey: "k", baseUrl: "https://api.test" });
+    const final = await upi.createAndWaitForPayment({ amount: 499 }, { pollInterval: 1000 });
+
+    expect(final.status).toBe("verified");
+    const calls = mockFetch.mock.calls.map(([url, init]) => `${init.method} ${url}`);
+    expect(calls).toEqual([
+      "POST https://api.test/api/v1/payments",
+      "GET https://api.test/api/v1/payments/p1",
+      "GET https://api.test/api/v1/payments/p1",
+      "GET https://api.test/api/v1/payments/p1",
+    ]);
+  }, 20_000);
+
+  it("stops at maxChecks and on abort", async () => {
+    reply(201, created);
+    reply(200, status("pending"));
+    reply(200, status("pending"));
+    const upi = new UpiAgent({ apiKey: "k", baseUrl: "https://api.test" });
+    const capped = await upi.createAndWaitForPayment({ amount: 1 }, { pollInterval: 1000, maxChecks: 1 });
+    expect(capped.status).toBe("pending");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    mockFetch.mockReset();
+    reply(201, created);
+    reply(200, status("pending"));
+    const ac = new AbortController();
+    const started = Date.now();
+    const waiting = upi.createAndWaitForPayment({ amount: 1 }, { pollInterval: 60_000, signal: ac.signal });
+    setTimeout(() => ac.abort(), 50);
+    await waiting;
+    expect(Date.now() - started).toBeLessThan(5_000);
+    // Aborted before the first read: create + the one final status read.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  }, 20_000);
+});

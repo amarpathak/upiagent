@@ -13,6 +13,7 @@
  */
 
 import type { ParsedPayment } from "../llm/schema.js";
+import { checkEmailAuth } from "./email-auth.js";
 import type {
   SecurityConfig,
   VerificationRequest,
@@ -131,7 +132,7 @@ export class SecurityValidator {
     // Failed authentication means the email may be spoofed — reject regardless
     // of whether the sender appears to be a known bank.
     if (authResults) {
-      const authCheck = this.checkEmailAuth(authResults);
+      const authCheck = checkEmailAuth(authResults);
       if (!authCheck.passed) {
         return {
           passed: false,
@@ -158,45 +159,6 @@ export class SecurityValidator {
     return {
       passed: true,
       details: `Unknown sender "${fromAddress}" accepted with high confidence ${payment.confidence}`,
-    };
-  }
-
-  /**
-   * Check DKIM, SPF, and DMARC results from the Authentication-Results header.
-   *
-   * Gmail's Authentication-Results header contains results like:
-   *   "dkim=pass; spf=pass; dmarc=pass"
-   *
-   * If DKIM or DMARC fail, the email may be spoofed. SPF alone is not
-   * sufficient (it only checks the envelope sender, not the From header).
-   * We require DKIM or DMARC to pass for the email to be trusted.
-   */
-  private checkEmailAuth(authResults: string): { passed: boolean; details: string } {
-    const lower = authResults.toLowerCase();
-
-    const dkim = /dkim=(\w+)/.exec(lower)?.[1] ?? "none";
-    const spf = /spf=(\w+)/.exec(lower)?.[1] ?? "none";
-    const dmarc = /dmarc=(\w+)/.exec(lower)?.[1] ?? "none";
-
-    // DKIM or DMARC must pass — these verify the From header domain
-    const dkimPass = dkim === "pass";
-    const dmarcPass = dmarc === "pass";
-
-    if (!dkimPass && !dmarcPass) {
-      const failures = [];
-      if (dkim === "fail") failures.push("DKIM");
-      if (spf === "fail") failures.push("SPF");
-      if (dmarc === "fail") failures.push("DMARC");
-
-      return {
-        passed: false,
-        details: `Email authentication failed: ${failures.join(", ")} failed (dkim=${dkim}, spf=${spf}, dmarc=${dmarc}). Email may be spoofed.`,
-      };
-    }
-
-    return {
-      passed: true,
-      details: `Email authentication passed (dkim=${dkim}, spf=${spf}, dmarc=${dmarc})`,
     };
   }
 

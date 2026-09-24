@@ -178,26 +178,35 @@ export class UpiAgent {
   }
 
   /**
-   * Wait for payment verification with polling.
-   * Creates payment, then polls verify + getStatus until verified or timeout.
+   * Creates a payment and waits for it to settle — for scripts and quick
+   * prototypes. **Prefer webhooks** (`payment.claimed` / `payment.verified`)
+   * in anything long-running.
    *
-   * @param params - Payment params
-   * @param options - Polling options
-   * @returns Payment object with final status
+   * The wait only reads the payment's status (a free database read); it never
+   * triggers Gmail or LLM verification — evidence arrives by push on the
+   * server. Reads back off from `pollInterval` to 30 s, are hard-capped at
+   * `maxChecks`, and stop immediately on `signal` abort.
+   *
+   * Returns on `verified`, on `claimed` when `acceptClaimed` is set, on
+   * `expired` / `cancelled`, or with the last status at the timeout.
    */
   async createAndWaitForPayment(
     params: CreatePaymentParams,
     options?: {
       /** Called with payment after creation (show QR here) */
       onPaymentCreated?: (payment: Payment) => void;
-      /** Called on each poll with current status */
+      /** Called after each status read */
       onStatusUpdate?: (status: Payment) => void;
-      /** Polling interval in ms (default: 5000) */
+      /** First wait between status reads in ms (default 5000; backs off to 30 s) */
       pollInterval?: number;
-      /** Timeout in ms (default: 180000 = 3 min) */
+      /** Timeout in ms (default 180000 = 3 min) */
       timeout?: number;
-      /** Delay before first verify in ms (default: 10000) */
-      initialDelay?: number;
+      /** Hard cap on status reads (default 20) */
+      maxChecks?: number;
+      /** Return as soon as the payment is `claimed` (screenshot accepted). */
+      acceptClaimed?: boolean;
+      /** Stops waiting (the payment itself is not cancelled). */
+      signal?: AbortSignal;
     },
   ): Promise<Payment> {
     const {
@@ -205,43 +214,45 @@ export class UpiAgent {
       onStatusUpdate,
       pollInterval = 5000,
       timeout = 180_000,
-      initialDelay = 10_000,
+      maxChecks = 20,
+      acceptClaimed = false,
+      signal,
     } = options || {};
 
     const payment = await this.createPayment(params);
     onPaymentCreated?.(payment);
 
-    // Wait for customer to pay
-    await new Promise((r) => setTimeout(r, initialDelay));
-
     const deadline = Date.now() + timeout;
+    let wait = Math.max(pollInterval, 1000);
+    let last: Payment | null = null;
 
-    while (Date.now() < deadline) {
-      // Trigger verification
-      try {
-        const result = await this.verify(payment.id);
-        if (result.verified) {
-          const final = await this.getStatus(payment.id);
-          onStatusUpdate?.(final);
-          return final;
-        }
-      } catch {
-        // verify can fail transiently, keep polling
-      }
+    for (let check = 0; check < maxChecks; check++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0 || signal?.aborted) break;
+      await sleep(Math.min(wait, remaining), signal);
+      if (signal?.aborted) break;
+      wait = Math.min(wait * 1.5, 30_000);
 
-      // Check status
-      const status = await this.getStatus(payment.id);
-      onStatusUpdate?.(status);
-
-      // `claimed` keeps polling: it is only screenshot-backed until bank
-      // evidence upgrades it to `verified`.
-      if (status.status === "verified") return status;
-      if (status.status === "expired" || status.status === "cancelled") return status;
-
-      await new Promise((r) => setTimeout(r, pollInterval));
+      last = await this.getStatus(payment.id);
+      onStatusUpdate?.(last);
+      if (last.status === "verified" || last.status === "expired" || last.status === "cancelled") return last;
+      if (acceptClaimed && last.status === "claimed") return last;
     }
 
-    // Timed out — return last status
-    return this.getStatus(payment.id);
+    return last ?? this.getStatus(payment.id);
   }
+}
+
+/** setTimeout as a promise that settles early (and clears its timer) on abort. */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener("abort", done, { once: true });
+  });
 }

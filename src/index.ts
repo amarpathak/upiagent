@@ -50,6 +50,11 @@ export type {
   ProofVerdict,
 } from "./proof/index.js";
 
+// UTR confirmation — settle a payment by finding its UTR in the bank's own email
+export { confirmPaymentByUtr, checkBankEmailForUtr, containsExactAmount } from "./confirm/utr.js";
+export type { UtrExpectation, UtrCheck, UtrConfirmation } from "./confirm/utr.js";
+export { checkEmailAuth } from "./security/email-auth.js";
+
 // Email pre-screen — cheap classifier run before the extraction LLM
 export { RulesClassifier, JevClassifier, JevClassifierError, EMAIL_KINDS } from "./classifier/index.js";
 export type { EmailClassifier, EmailClassification, EmailKind, JevClassifierConfig } from "./classifier/index.js";
