@@ -112,3 +112,7 @@ export type {
   Payment,
   VerifyResult,
 } from "./client.js";
+
+// API contracts — Zod schemas + inferred types shared by the API, SDK,
+// webhooks and MCP tools. Also available standalone as "<pkg>/contracts".
+export * from "./contracts/index.js";

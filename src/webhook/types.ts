@@ -1,20 +1,6 @@
-export type WebhookEvent = "payment.verified" | "payment.expired";
-
-export interface WebhookPayload {
-  event: WebhookEvent;
-  timestamp: string;
-  deliveryId: string;
-  data: {
-    paymentId: string;
-    amount: number;
-    currency: "INR";
-    status: "verified" | "expired";
-    upiReferenceId?: string;
-    senderName?: string;
-    confidence?: number;
-    verifiedAt?: string;
-  };
-}
+// Payload shape lives in the shared contracts so senders, receivers and the
+// docs cannot drift apart.
+export type { WebhookEvent, WebhookPayload } from "../contracts/index.js";
 
 export interface WebhookDeliveryResult {
   delivered: boolean;

@@ -13,47 +13,26 @@
  *   const status = await upi.getStatus(payment.id);
  */
 
+import type { z } from "zod/v4";
+import {
+  createPaymentResponseSchema,
+  paymentSchema,
+  verifyPaymentResponseSchema,
+  type CreatePaymentRequest,
+  type Payment,
+  type VerifyPaymentResponse,
+} from "./contracts/index.js";
+
 export interface UpiAgentConfig {
   apiKey: string;
   baseUrl?: string;
 }
 
-export interface CreatePaymentParams {
-  amount: number;
-  note?: string;
-  addPaisa?: boolean;
-}
-
-export interface Payment {
-  id: string;
-  transactionId: string;
-  amount: number;
-  intentUrl: string;
-  qrDataUrl: string;
-  status: "pending" | "verified" | "expired";
-  expiresAt: string;
-  createdAt: string;
-  note?: string;
-  upiReferenceId?: string;
-  senderName?: string;
-  senderUpiId?: string;
-  bankName?: string;
-  confidence?: number;
-  verifiedAt?: string;
-}
-
-export interface VerifyResult {
-  verified: boolean;
-  status: string;
-  message?: string;
-  payment?: {
-    amount: number;
-    upiReferenceId: string;
-    senderName: string;
-    bankName: string;
-    confidence: number;
-  };
-}
+// Types come from the shared API contracts; these names are kept for
+// backwards compatibility.
+export type CreatePaymentParams = CreatePaymentRequest;
+export type { Payment };
+export type VerifyResult = VerifyPaymentResponse;
 
 export class UpiAgentApiError extends Error {
   constructor(
@@ -76,7 +55,12 @@ export class UpiAgent {
     this.baseUrl = (config.baseUrl || "https://beta.upiagent.live").replace(/\/$/, "");
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<S extends z.ZodType>(
+    schema: S,
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<z.output<S>> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
@@ -86,24 +70,33 @@ export class UpiAgent {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
 
     if (!res.ok) {
       throw new UpiAgentApiError(
-        data.error || `API error: ${res.status}`,
+        (data && typeof data.error === "string" && data.error) || `API error: ${res.status}`,
         res.status,
         data,
       );
     }
 
-    return data as T;
+    // Validate against the shared contract instead of trusting an `as T` cast.
+    const parsed = schema.safeParse(data);
+    if (!parsed.success) {
+      throw new UpiAgentApiError(
+        `Unexpected response shape from ${method} ${path}: ${parsed.error.issues[0]?.message ?? "invalid"}`,
+        res.status,
+        data,
+      );
+    }
+    return parsed.data;
   }
 
   /**
    * Create a payment with QR code
    */
   async createPayment(params: CreatePaymentParams): Promise<Payment> {
-    return this.request<Payment>("POST", "/api/v1/payments", params);
+    return this.request(createPaymentResponseSchema, "POST", "/api/v1/payments", params);
   }
 
   /**
@@ -111,14 +104,14 @@ export class UpiAgent {
    * Call this after the customer has paid.
    */
   async verify(paymentId: string): Promise<VerifyResult> {
-    return this.request<VerifyResult>("POST", `/api/v1/payments/${paymentId}`);
+    return this.request(verifyPaymentResponseSchema, "POST", `/api/v1/payments/${encodeURIComponent(paymentId)}`);
   }
 
   /**
    * Check payment status (read-only, no verification triggered)
    */
   async getStatus(paymentId: string): Promise<Payment> {
-    return this.request<Payment>("GET", `/api/v1/payments/${paymentId}`);
+    return this.request(paymentSchema, "GET", `/api/v1/payments/${encodeURIComponent(paymentId)}`);
   }
 
   /**

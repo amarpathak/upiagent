@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Android UPI notification parser (`parseNotification`, `isKnownUpiApp`) — verifies payments from app notifications with no LLM call
 - `rateLimitKey` option to bucket the LLM rate limiter per merchant/tenant
 - Deterministic bank display names from the sender registry
+- `upiagent/contracts`: Zod schemas + inferred types for every API request/response and the webhook payload — the same definitions the hosted API validates against
+- Client SDK validates API responses against the contracts and throws `UpiAgentApiError` on an unexpected shape instead of casting
+
+### Changed
+
+- Client SDK types are inferred from the contracts: nullable fields (`note`, `upiReferenceId`, …) are typed `string | null | undefined`, and `VerifyResult.status` is the `PaymentStatus` union rather than `string`
+- Client SDK URL-encodes payment IDs
 
 ### Fixed
 
