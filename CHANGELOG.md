@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Two-tier payment status: `claimed` (screenshot passed every check) → `verified` (bank-confirmed), plus `cancelled`; `payment.claimed` webhook event
 - Screenshot proof: `extractScreenshot` (vision transcription only) + `adjudicateProof` (deterministic: success status, exact amount, payee is the merchant, time window, 12-digit UTR) + `decodeProofImage`
 - `upiagent/mcp`: transport-agnostic MCP server core (`createMcpServer`, `defineTool`) and the six upiagent tools with Zod input/output schemas, annotations and release guidance
-- Client SDK: `submitProof()` and `cancel()`
+- `npx upiagent mcp`: the MCP server over stdio for local clients (Claude Desktop, Cursor, …), forwarding to the hosted API; configured with `UPIAGENT_API_KEY` / `UPIAGENT_BASE_URL`
+- Client SDK: `submitProof()`, `cancel()`, `listPayments()`, `getEvidence()`, `getUsage()`
 - Client SDK validates API responses against the contracts and throws `UpiAgentApiError` on an unexpected shape instead of casting
 
 ### Changed

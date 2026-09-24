@@ -5,6 +5,7 @@
  *
  * Commands:
  *   npx upiagent setup    — Interactive Gmail OAuth setup
+ *   npx upiagent mcp      — MCP server over stdio (for Claude Desktop, Cursor, …)
  *   npx upiagent          — Show help
  *   npx upiagent version  — Show version
  */
@@ -34,11 +35,16 @@ function showHelp() {
     setup      Interactive Gmail OAuth setup. Opens your browser,
                gets a refresh token, outputs .env values.
 
+    mcp        Run the upiagent MCP server over stdio, so AI agents can
+               create UPI payments and check payment screenshots.
+               Needs UPIAGENT_API_KEY in the environment.
+
     version    Show version number.
 
   Usage:
 
     npx upiagent setup
+    UPIAGENT_API_KEY=upi_ak_... npx upiagent mcp
     npx upiagent version
 
   Docs: https://github.com/AmarPathak/upiagent
@@ -116,6 +122,13 @@ async function main() {
     case "setup":
       await runSetup();
       break;
+
+    case "mcp": {
+      // Loaded lazily: stdout must carry only MCP messages from here on.
+      const { startStdioMcp } = await import("../mcp/stdio-main.js");
+      await startStdioMcp(VERSION);
+      break;
+    }
 
     case "version":
     case "--version":

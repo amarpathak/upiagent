@@ -26,6 +26,7 @@ No payment gateway SDK. No webhooks from a third party. No merchant onboarding. 
 
 - [Install](#install)
 - [Quick Start (SaaS API)](#quick-start-saas-api)
+- [Use with AI agents (MCP)](#use-with-ai-agents-mcp)
 - [Self-Hosted Mode](#self-hosted-mode)
 - [LLM Providers](#llm-providers)
 - [Gmail Setup](#gmail-setup)
@@ -133,6 +134,46 @@ export async function GET(req: Request, { params }) {
   return Response.json(await upi.getStatus(id));
 }
 ```
+
+---
+
+## Use with AI agents (MCP)
+
+upiagent ships an MCP server, so any MCP-capable agent (Claude, Cursor, …) can
+create UPI payment requests, check a customer's payment screenshot, and wait
+for bank confirmation.
+
+Local (stdio) — add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "upiagent": {
+      "command": "npx",
+      "args": ["-y", "upiagent", "mcp"],
+      "env": { "UPIAGENT_API_KEY": "upi_ak_..." }
+    }
+  }
+}
+```
+
+Hosted (HTTP): `https://upiagent.live/api/mcp` with `Authorization: Bearer upi_ak_...`.
+
+| Tool | Purpose |
+|---|---|
+| `upiagent_create_payment` | Payment request → `upi://` intent URL + exact amount |
+| `upiagent_submit_payment_proof` | Check a payment screenshot → `claimed`, or rejected with reasons |
+| `upiagent_get_payment_status` | Status + evidence trail (no LLM cost; poll freely) |
+| `upiagent_list_payments` | Paginated list, filter by status / time |
+| `upiagent_cancel_payment` | Cancel a pending payment |
+| `upiagent_get_usage` | LLM tokens used today vs the daily limit |
+
+Payments move `pending → claimed → verified`: **claimed** means the screenshot
+passed every check (exact amount, paid to you, inside the time window, unused
+UTR) and is fine for low-value goods; **verified** means your bank confirmed
+it. A rejected proof means do not deliver.
+
+You can also embed the server: `import { createMcpServer, UPIAGENT_TOOLS } from "upiagent/mcp"`.
 
 ---
 

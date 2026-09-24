@@ -16,6 +16,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "skipLibCheck": true,
+    // TypeScript 6 no longer loads @types/* automatically.
+    "types": ["node"],
     "ignoreDeprecations": "6.0"
   },
   "include": ["src"],

@@ -21,3 +21,6 @@ export {
   getUsageTool,
   type UpiAgentBackend,
 } from "./tools.js";
+export { runStdioServer, type StdioServerOptions } from "./stdio.js";
+export { createClientBackend } from "./client-backend.js";
+export { startStdioMcp, DEFAULT_API_BASE_URL } from "./stdio-main.js";

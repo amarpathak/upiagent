@@ -93,6 +93,18 @@ export const paymentEvidenceSchema = z.object({
 });
 export type PaymentEvidence = z.infer<typeof paymentEvidenceSchema>;
 
+export const paymentEvidenceListSchema = z.object({ evidence: z.array(paymentEvidenceSchema) });
+
+/** GET /api/v1/payments query string. */
+export const listPaymentsQuerySchema = z.object({
+  status: paymentStatusSchema.optional(),
+  /** ISO 8601; only payments created at or after it. */
+  since: z.string().datetime({ offset: true }).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().max(200).optional(),
+});
+export type ListPaymentsQuery = z.input<typeof listPaymentsQuerySchema>;
+
 export const listPaymentsResponseSchema = z.object({
   payments: z.array(paymentSchema),
   hasMore: z.boolean(),

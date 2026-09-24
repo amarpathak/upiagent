@@ -20,7 +20,9 @@ const created = {
 };
 
 describe("UpiAgent client", () => {
-  beforeEach(() => mockFetch.mockReset());
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
 
   it("sends the API key and returns a contract-valid payment", async () => {
     reply(201, created);

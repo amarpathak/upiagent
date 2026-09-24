@@ -19,9 +19,17 @@ import {
   paymentSchema,
   verifyPaymentResponseSchema,
   submitProofResponseSchema,
+  listPaymentsResponseSchema,
+  paymentEvidenceListSchema,
+  usageSchema,
+  type ListPaymentsQuery,
+  type ListPaymentsResponse,
+  type PaymentEvidence,
+  type Usage,
   type SubmitProofRequest,
   type SubmitProofResponse,
   type CreatePaymentRequest,
+  type CreatePaymentResponse,
   type Payment,
   type VerifyPaymentResponse,
 } from "./contracts/index.js";
@@ -98,7 +106,7 @@ export class UpiAgent {
   /**
    * Create a payment with QR code
    */
-  async createPayment(params: CreatePaymentParams): Promise<Payment> {
+  async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResponse> {
     return this.request(createPaymentResponseSchema, "POST", "/api/v1/payments", params);
   }
 
@@ -136,6 +144,37 @@ export class UpiAgent {
    */
   async cancel(paymentId: string): Promise<Payment> {
     return this.request(paymentSchema, "DELETE", `/api/v1/payments/${encodeURIComponent(paymentId)}`);
+  }
+
+  /**
+   * List payments, newest first. Pass `nextCursor` back as `cursor` for the next page.
+   */
+  async listPayments(query: ListPaymentsQuery = {}): Promise<ListPaymentsResponse> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return this.request(listPaymentsResponseSchema, "GET", `/api/v1/payments${qs ? `?${qs}` : ""}`);
+  }
+
+  /**
+   * Evidence trail for a payment (which sources matched, with what confidence).
+   */
+  async getEvidence(paymentId: string): Promise<PaymentEvidence[]> {
+    const { evidence } = await this.request(
+      paymentEvidenceListSchema,
+      "GET",
+      `/api/v1/payments/${encodeURIComponent(paymentId)}/evidence`,
+    );
+    return evidence;
+  }
+
+  /**
+   * Today's LLM token usage against the daily limit.
+   */
+  async getUsage(): Promise<Usage> {
+    return this.request(usageSchema, "GET", "/api/v1/usage");
   }
 
   /**
