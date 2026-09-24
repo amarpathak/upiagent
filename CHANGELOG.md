@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rateLimitKey` option to bucket the LLM rate limiter per merchant/tenant
 - Deterministic bank display names from the sender registry
 - `upiagent/contracts`: Zod schemas + inferred types for every API request/response and the webhook payload — the same definitions the hosted API validates against
+- Email pre-screen before the extraction LLM: `EmailClassifier` interface, a free `RulesClassifier`, and `JevClassifier` on TypeSafe's Jev model (calibrated credit/debit/OTP/statement/promotional probabilities plus a forged-or-manipulative signal). Opt in with `verifyPayment(email, { classifier })`; classifier failures fall through to the LLM, and the classifier never decides that a payment happened
+- `extractPayment` / `matchParsedPayment`: parse an email once, then match it against many expected payments with no further LLM calls (`verifyPayment` is now these two composed)
 - Client SDK validates API responses against the contracts and throws `UpiAgentApiError` on an unexpected shape instead of casting
 
 ### Changed

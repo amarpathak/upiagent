@@ -26,7 +26,16 @@
 export const VERSION = "0.1.0";
 
 // Primary API — unified verification
-export { verifyPayment, fetchAndVerifyPayment } from "./verify.js";
+export { verifyPayment, fetchAndVerifyPayment, extractPayment, matchParsedPayment } from "./verify.js";
+export type {
+  ExtractPaymentOptions,
+  MatchPaymentOptions,
+  ExtractionResult,
+} from "./verify.js";
+
+// Email pre-screen — cheap classifier run before the extraction LLM
+export { RulesClassifier, JevClassifier, JevClassifierError, EMAIL_KINDS } from "./classifier/index.js";
+export type { EmailClassifier, EmailClassification, EmailKind, JevClassifierConfig } from "./classifier/index.js";
 export type { VerifyPaymentOptions, FetchAndVerifyOptions, VerificationPreset } from "./verify.js";
 
 // Payment — QR code generation and UPI intent URLs

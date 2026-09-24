@@ -1,3 +1,4 @@
+import type { EmailClassification } from "../classifier/types.js";
 /**
  * Security Layer Types
  *
@@ -107,6 +108,9 @@ export interface VerificationResult {
 
   /** How the payment was matched — UTR hint or amount (default) */
   matchedVia?: "utr_hint" | "amount";
+
+  /** Pre-screen result, when a classifier ran (see VerifyPaymentOptions.classifier) */
+  classification?: EmailClassification;
 
   /** Which layers were checked and their results */
   layerResults: {

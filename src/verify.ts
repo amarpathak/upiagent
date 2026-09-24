@@ -20,13 +20,13 @@ import type {
 import type { DedupStore } from "./security/dedup.js";
 import { parsePaymentEmail } from "./llm/chain.js";
 import { SecurityValidator } from "./security/validator.js";
-import { InMemoryDedupStore } from "./security/dedup.js";
 import { shouldSkipLlm, isKnownBankEmail, getBankDisplayName } from "./security/bank-registry.js";
 import { CostTracker } from "./utils/cost.js";
 import { LlmRateLimiter } from "./utils/rate-limiter.js";
 import { LlmRateLimitError } from "./utils/errors.js";
 import { GmailClient } from "./gmail/client.js";
 import { StepLogger } from "./utils/step-logger.js";
+import type { EmailClassification, EmailClassifier } from "./classifier/types.js";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -49,7 +49,31 @@ export interface VerifyPaymentOptions {
   costTracker?: CostTracker;
   stepLogger?: StepLogger;
   preset?: VerificationPreset;
+  /**
+   * Optional pre-screen (e.g. JevClassifier) run after the free regex gate and
+   * before the extraction LLM. Failures fall through to the LLM — the gate may
+   * save spend but must never lose a real payment.
+   */
+  classifier?: EmailClassifier;
+  /** Skip extraction when the classifier's P(credit) is below this. Default 0.15. */
+  minCreditProbability?: number;
 }
+
+/** Options that depend only on the email — shared across every pending payment. */
+export type ExtractPaymentOptions = Pick<
+  VerifyPaymentOptions,
+  "llm" | "rateLimiter" | "rateLimitKey" | "costTracker" | "stepLogger" | "classifier" | "minCreditProbability"
+>;
+
+/** Options that depend on the payment being matched. */
+export type MatchPaymentOptions = Pick<
+  VerifyPaymentOptions,
+  "expected" | "expectedUtrs" | "dedup" | "stepLogger" | "preset"
+>;
+
+export type ExtractionResult =
+  | { status: "extracted"; payment: ParsedPayment; classification?: EmailClassification }
+  | { status: "skipped"; result: VerificationResult; classification?: EmailClassification };
 
 export interface FetchAndVerifyOptions extends VerifyPaymentOptions {
   gmail: GmailCredentials;
@@ -119,28 +143,67 @@ function redactPii(payment: ParsedPayment): ParsedPayment {
 
 // ── Main API ─────────────────────────────────────────────────────────
 
+const DEFAULT_MIN_CREDIT_PROBABILITY = 0.15;
+const SUSPICION_THRESHOLD = 0.8;
+
 /**
- * Verify a single email message against expected payment details.
- *
- * Pipeline:
- * 1. Pre-LLM gate (shouldSkipLlm)
- * 2. Rate limiter check
- * 3. LLM parsing
- * 4. Security validation (format, bank source, amount, time, dedup)
- * 5. Demo redaction (if preset === "demo")
+ * Stage 1 — everything that depends only on the email: the free regex gate,
+ * the optional classifier, the rate limiter, the extraction LLM and the
+ * post-extraction checks. Run it once per email, then match the result
+ * against as many pending payments as needed with `matchParsedPayment`.
  */
-export async function verifyPayment(
+export async function extractPayment(
   email: EmailMessage,
-  options: VerifyPaymentOptions,
-): Promise<VerificationResult> {
+  options: ExtractPaymentOptions,
+): Promise<ExtractionResult> {
   const log = options.stepLogger;
 
-  // ── Step 1: Pre-LLM gate ──────────────────────────────────────
+  // ── Step 1: Pre-LLM gate (free) ───────────────────────────────
   const skipped = shouldSkipLlm(email.from, email.body);
   log?.log("pre_llm_gate", { email_id: email.id, sender: email.from, subject: email.subject, skipped });
   if (skipped) {
     log?.log("skipped", { reason: "not a payment notification (pre-LLM gate)" });
-    return unverifiedResult("NOT_PAYMENT_EMAIL", "Email does not appear to be a payment notification");
+    return {
+      status: "skipped",
+      result: unverifiedResult("NOT_PAYMENT_EMAIL", "Email does not appear to be a payment notification"),
+    };
+  }
+
+  // ── Step 1.5: Classifier pre-screen (cheap, optional) ─────────
+  let classification: EmailClassification | undefined;
+  if (options.classifier) {
+    try {
+      classification = await options.classifier.classify(email);
+      log?.log("classifier", {
+        email_id: email.id,
+        classifier: options.classifier.name,
+        kind: classification.kind,
+        credit_probability: classification.creditProbability,
+        suspicion_probability: classification.suspicionProbability,
+        input_tokens: classification.usage?.inputTokens ?? null,
+      });
+    } catch (err) {
+      // Fail open: a classifier outage costs money, never a missed payment.
+      log?.log("classifier_error", {
+        classifier: options.classifier.name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    const threshold = options.minCreditProbability ?? DEFAULT_MIN_CREDIT_PROBABILITY;
+    if (classification && classification.creditProbability < threshold) {
+      log?.log("skipped", {
+        reason: `classifier: ${classification.kind} (P(credit)=${classification.creditProbability.toFixed(2)})`,
+      });
+      return {
+        status: "skipped",
+        result: unverifiedResult(
+          "NOT_PAYMENT_EMAIL",
+          `Classified as ${classification.kind}, not an incoming payment`,
+        ),
+        classification,
+      };
+    }
   }
 
   // ── Step 2: Rate limiter ──────────────────────────────────────
@@ -151,10 +214,11 @@ export async function verifyPayment(
     } catch (err) {
       if (err instanceof LlmRateLimitError) {
         log?.log("rate_limit", { acquired: false, error: err.message });
-        return unverifiedResult(
-          "NOT_PAYMENT_EMAIL",
-          `LLM rate limit exceeded — ${err.message}`,
-        );
+        return {
+          status: "skipped",
+          result: unverifiedResult("NOT_PAYMENT_EMAIL", `LLM rate limit exceeded — ${err.message}`),
+          classification,
+        };
       }
       throw err;
     }
@@ -192,7 +256,11 @@ export async function verifyPayment(
   });
 
   if (!parsed) {
-    return unverifiedResult("NOT_PAYMENT_EMAIL", "LLM could not parse payment data from email");
+    return {
+      status: "skipped",
+      result: unverifiedResult("NOT_PAYMENT_EMAIL", "LLM could not parse payment data from email"),
+      classification,
+    };
   }
 
   // ── Step 3.1: Post-extraction amount verification ──────────
@@ -218,6 +286,36 @@ export async function verifyPayment(
       parsed.confidence = Math.min(parsed.confidence, 0.6);
     }
   }
+
+  // ── Step 3.2: Classifier suspicion signal ──────────────────────
+  // Same treatment as the amount-in-source check: lower confidence as a
+  // signal, but leave rejection to the deterministic layers.
+  if (
+    classification?.suspicionProbability != null &&
+    classification.suspicionProbability >= SUSPICION_THRESHOLD
+  ) {
+    log?.log("classifier_suspicion_warning", {
+      message: `Classifier rates this email ${Math.round(classification.suspicionProbability * 100)}% likely forged or manipulative.`,
+    });
+    parsed.confidence = Math.min(parsed.confidence, 0.6);
+  }
+
+  return { status: "extracted", payment: parsed, classification };
+}
+
+/**
+ * Stage 2 — match an already-extracted payment against one expected payment:
+ * UTR hints, the security layers, and demo redaction. No LLM call.
+ */
+export async function matchParsedPayment(
+  extracted: ParsedPayment,
+  email: EmailMessage,
+  options: MatchPaymentOptions,
+): Promise<VerificationResult> {
+  const log = options.stepLogger;
+  // Each match gets its own copy: layers must not leak state between
+  // the pending payments one email is compared against.
+  const parsed: ParsedPayment = { ...extracted };
 
   // ── Step 3.5: UTR hint matching ──────────────────────────────
   // If caller provided expectedUtrs, check if the LLM-extracted UTR matches.
@@ -295,6 +393,31 @@ export async function verifyPayment(
   }
 
   return result;
+}
+
+/**
+ * Verify a single email message against expected payment details.
+ *
+ * Pipeline:
+ * 1. Pre-LLM gate (regex) and optional classifier pre-screen
+ * 2. Rate limiter check
+ * 3. LLM parsing + post-extraction checks
+ * 4. Security validation (format, bank source, amount, time, dedup)
+ * 5. Demo redaction (if preset === "demo")
+ *
+ * When one email must be checked against many pending payments, call
+ * `extractPayment` once and `matchParsedPayment` per payment instead.
+ */
+export async function verifyPayment(
+  email: EmailMessage,
+  options: VerifyPaymentOptions,
+): Promise<VerificationResult> {
+  const extraction = await extractPayment(email, options);
+  if (extraction.status === "skipped") {
+    return { ...extraction.result, classification: extraction.classification };
+  }
+  const result = await matchParsedPayment(extraction.payment, email, options);
+  return { ...result, classification: extraction.classification };
 }
 
 /**
