@@ -17,7 +17,14 @@ import { z } from "zod/v4";
 
 // ── Shared ──────────────────────────────────────────────────────
 
-export const paymentStatusSchema = z.enum(["pending", "verified", "expired"]);
+/**
+ * Two-tier lifecycle:
+ *   pending ──screenshot──> claimed ──bank evidence──> verified
+ * `claimed` is an optimistic receipt (screenshot passed UTR-uniqueness, amount
+ * and time checks); `verified` is corroborated by bank evidence. Release
+ * low-ticket goods on `claimed`, high-ticket only on `verified`.
+ */
+export const paymentStatusSchema = z.enum(["pending", "claimed", "verified", "expired", "cancelled"]);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
 /** Every non-2xx API response. */
@@ -65,15 +72,45 @@ export const paymentSchema = z.object({
   qrDataUrl: z.string().nullish(),
   expiresAt: z.string().nullish(),
   createdAt: z.string(),
-  // Present once verified.
+  // Present once claimed or verified.
   upiReferenceId: z.string().nullish(),
   senderName: z.string().nullish(),
   senderUpiId: z.string().nullish(),
   bankName: z.string().nullish(),
   confidence: z.number().nullish(),
+  claimedAt: z.string().nullish(),
   verifiedAt: z.string().nullish(),
 });
 export type Payment = z.infer<typeof paymentSchema>;
+
+export const paymentEvidenceSchema = z.object({
+  /** gmail | notification | screenshot */
+  source: z.string(),
+  /** match | no_match | error */
+  status: z.string(),
+  confidence: z.number().nullable(),
+  createdAt: z.string(),
+});
+export type PaymentEvidence = z.infer<typeof paymentEvidenceSchema>;
+
+export const listPaymentsResponseSchema = z.object({
+  payments: z.array(paymentSchema),
+  hasMore: z.boolean(),
+  /** Pass back as `cursor` for the next page; null on the last page. */
+  nextCursor: z.string().nullable(),
+});
+export type ListPaymentsResponse = z.infer<typeof listPaymentsResponseSchema>;
+
+export const usageSchema = z.object({
+  tokensToday: z.number(),
+  dailyLimit: z.number(),
+  remaining: z.number(),
+  /** "own_key" when the merchant's own LLM key pays for calls. */
+  tier: z.enum(["platform", "own_key"]),
+  /** ISO time the daily counter resets (00:00 UTC). */
+  resetsAt: z.string(),
+});
+export type Usage = z.infer<typeof usageSchema>;
 
 // ── POST /api/v1/payments/:id (trigger verification) ────────────
 
@@ -92,6 +129,28 @@ export const verifyPaymentResponseSchema = z.object({
     .optional(),
 });
 export type VerifyPaymentResponse = z.infer<typeof verifyPaymentResponseSchema>;
+
+// ── POST /api/v1/payments/:id/proof (screenshot → claimed) ──────
+
+export const submitProofRequestSchema = z.object({
+  /** Base64 image, or a data: URL (image/png, image/jpeg, image/webp; max 3 MB decoded). */
+  image: z.string().min(100).max(4_300_000),
+  /** Required when `image` is bare base64. */
+  mediaType: z.enum(["image/png", "image/jpeg", "image/webp"]).optional(),
+});
+export type SubmitProofRequest = z.infer<typeof submitProofRequestSchema>;
+
+export const submitProofResponseSchema = z.object({
+  /** False means: do NOT deliver the goods on the strength of this proof. */
+  accepted: z.boolean(),
+  /** Payment status after this call. */
+  status: paymentStatusSchema,
+  utr: z.string().nullable(),
+  confidence: z.number(),
+  /** Each check's outcome, in order. */
+  reasons: z.array(z.string()),
+});
+export type SubmitProofResponse = z.infer<typeof submitProofResponseSchema>;
 
 // ── POST /api/v1/notify (Android app evidence) ──────────────────
 
@@ -122,7 +181,7 @@ export type NotifyRequest = z.input<typeof notifyRequestSchema>;
 
 // ── Webhooks ────────────────────────────────────────────────────
 
-export const webhookEventSchema = z.enum(["payment.verified", "payment.expired"]);
+export const webhookEventSchema = z.enum(["payment.claimed", "payment.verified", "payment.expired"]);
 export type WebhookEvent = z.infer<typeof webhookEventSchema>;
 
 export const webhookPayloadSchema = z.object({
@@ -133,7 +192,7 @@ export const webhookPayloadSchema = z.object({
     paymentId: z.string(),
     amount: z.number(),
     currency: z.literal("INR"),
-    status: z.enum(["verified", "expired"]),
+    status: z.enum(["claimed", "verified", "expired"]),
     upiReferenceId: z.string().optional(),
     senderName: z.string().optional(),
     confidence: z.number().optional(),

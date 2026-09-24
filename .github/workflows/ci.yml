@@ -32,4 +32,8 @@ jobs:
         run: npm run test
 
       - name: Build
+        # tsup's .d.ts pass over the LangChain types needs >2 GB of heap,
+        # above Node's default on the hosted runner.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `upiagent/contracts`: Zod schemas + inferred types for every API request/response and the webhook payload — the same definitions the hosted API validates against
 - Email pre-screen before the extraction LLM: `EmailClassifier` interface, a free `RulesClassifier`, and `JevClassifier` on TypeSafe's Jev model (calibrated credit/debit/OTP/statement/promotional probabilities plus a forged-or-manipulative signal). Opt in with `verifyPayment(email, { classifier })`; classifier failures fall through to the LLM, and the classifier never decides that a payment happened
 - `extractPayment` / `matchParsedPayment`: parse an email once, then match it against many expected payments with no further LLM calls (`verifyPayment` is now these two composed)
+- Two-tier payment status: `claimed` (screenshot passed every check) → `verified` (bank-confirmed), plus `cancelled`; `payment.claimed` webhook event
+- Screenshot proof: `extractScreenshot` (vision transcription only) + `adjudicateProof` (deterministic: success status, exact amount, payee is the merchant, time window, 12-digit UTR) + `decodeProofImage`
+- `upiagent/mcp`: transport-agnostic MCP server core (`createMcpServer`, `defineTool`) and the six upiagent tools with Zod input/output schemas, annotations and release guidance
+- Client SDK: `submitProof()` and `cancel()`
 - Client SDK validates API responses against the contracts and throws `UpiAgentApiError` on an unexpected shape instead of casting
 
 ### Changed

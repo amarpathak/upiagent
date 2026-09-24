@@ -18,6 +18,9 @@ import {
   createPaymentResponseSchema,
   paymentSchema,
   verifyPaymentResponseSchema,
+  submitProofResponseSchema,
+  type SubmitProofRequest,
+  type SubmitProofResponse,
   type CreatePaymentRequest,
   type Payment,
   type VerifyPaymentResponse,
@@ -115,6 +118,27 @@ export class UpiAgent {
   }
 
   /**
+   * Submit a payment screenshot. On success the payment becomes `claimed`
+   * (screenshot-backed); bank evidence later upgrades it to `verified`.
+   * `accepted: false` means do not deliver the goods.
+   */
+  async submitProof(paymentId: string, proof: SubmitProofRequest): Promise<SubmitProofResponse> {
+    return this.request(
+      submitProofResponseSchema,
+      "POST",
+      `/api/v1/payments/${encodeURIComponent(paymentId)}/proof`,
+      proof,
+    );
+  }
+
+  /**
+   * Cancel a pending payment.
+   */
+  async cancel(paymentId: string): Promise<Payment> {
+    return this.request(paymentSchema, "DELETE", `/api/v1/payments/${encodeURIComponent(paymentId)}`);
+  }
+
+  /**
    * Wait for payment verification with polling.
    * Creates payment, then polls verify + getStatus until verified or timeout.
    *
@@ -170,8 +194,10 @@ export class UpiAgent {
       const status = await this.getStatus(payment.id);
       onStatusUpdate?.(status);
 
+      // `claimed` keeps polling: it is only screenshot-backed until bank
+      // evidence upgrades it to `verified`.
       if (status.status === "verified") return status;
-      if (status.status === "expired") return status;
+      if (status.status === "expired" || status.status === "cancelled") return status;
 
       await new Promise((r) => setTimeout(r, pollInterval));
     }

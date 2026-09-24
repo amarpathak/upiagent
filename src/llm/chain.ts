@@ -42,7 +42,7 @@ import { ConfigError } from "../utils/errors.js";
  *
  * This is the "adapter pattern" — same interface, different implementations.
  */
-function createLlmModel(config: LlmConfig): BaseChatModel {
+export function createLlmModel(config: LlmConfig): BaseChatModel {
   if (!config.model) {
     throw new ConfigError(
       'LLM model is required. Examples: "gemini-2.0-flash" (Gemini), "gpt-4o-mini" (OpenAI), "claude-sonnet-4-5-20250514" (Anthropic)'

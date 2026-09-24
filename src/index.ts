@@ -33,6 +33,23 @@ export type {
   ExtractionResult,
 } from "./verify.js";
 
+// Screenshot proof — vision extraction + deterministic adjudication ("claimed" tier)
+export {
+  extractScreenshot,
+  adjudicateProof,
+  decodeProofImage,
+  screenshotExtractionSchema,
+  PROOF_MEDIA_TYPES,
+  MAX_PROOF_IMAGE_BYTES,
+} from "./proof/index.js";
+export type {
+  ScreenshotExtraction,
+  ProofImage,
+  ProofMediaType,
+  ProofExpectation,
+  ProofVerdict,
+} from "./proof/index.js";
+
 // Email pre-screen — cheap classifier run before the extraction LLM
 export { RulesClassifier, JevClassifier, JevClassifierError, EMAIL_KINDS } from "./classifier/index.js";
 export type { EmailClassifier, EmailClassification, EmailKind, JevClassifierConfig } from "./classifier/index.js";
