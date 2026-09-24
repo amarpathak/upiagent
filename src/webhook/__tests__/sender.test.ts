@@ -135,6 +135,22 @@ describe("WebhookSender", () => {
         sender.send("https://169.254.169.254/latest/meta-data/", secret, makePayload())
       ).rejects.toThrow("private");
     });
+
+    it("rejects IPv4-mapped IPv6 addresses", async () => {
+      const sender = new WebhookSender();
+      await expect(
+        sender.send("https://[::ffff:127.0.0.1]/webhook", secret, makePayload())
+      ).rejects.toThrow("private");
+    });
+
+    it("allows public hostnames that merely start like a private range", async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+      const sender = new WebhookSender();
+      for (const url of ["https://fdic.gov/hook", "https://fcm.example.com/hook", "https://10.example.com/hook"]) {
+        const result = await sender.send(url, secret, makePayload());
+        expect(result.delivered).toBe(true);
+      }
+    });
   });
 
   it("body is valid JSON with correct payload", async () => {

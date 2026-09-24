@@ -40,6 +40,14 @@ export interface CostTrackerOptions {
 }
 
 export class CostTracker {
+  /**
+   * Conservative fallback charge when a provider reports no usage we can read.
+   * Sized above a typical payment-email parse (~500-800 tokens total) so an
+   * unreadable provider shape errs toward over-billing rather than free usage.
+   */
+  static readonly UNMEASURED_INPUT_ESTIMATE = 1_000;
+  static readonly UNMEASURED_OUTPUT_ESTIMATE = 200;
+
   private totalInputTokens = 0;
   private totalOutputTokens = 0;
   private callCount = 0;
@@ -112,6 +120,12 @@ export class CostTracker {
     handleLLMEnd: (output: {
       generations: unknown[];
       llmOutput?: {
+        /** Anthropic (@langchain/anthropic v1.x) — raw API response passthrough */
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+        };
+        /** OpenAI / Gemini — LangChain's normalised shape */
         tokenUsage?: {
           promptTokens?: number;
           completionTokens?: number;
@@ -122,12 +136,44 @@ export class CostTracker {
   } {
     return {
       handleLLMEnd: async (output) => {
-        const usage = output.llmOutput?.tokenUsage;
-        if (!usage) return;
+        // Providers disagree on shape. @langchain/anthropic v1.x returns
+        // `llmOutput: rest` — the raw Anthropic response, carrying
+        // `usage.input_tokens`. OpenAI and Gemini emit LangChain's normalised
+        // `tokenUsage.promptTokens`. Reading only the latter silently recorded
+        // zero for every Anthropic call, which disabled the daily token cap.
+        const anthropic = output.llmOutput?.usage;
+        const normalized = output.llmOutput?.tokenUsage;
+
+        const inputTokens = anthropic?.input_tokens ?? normalized?.promptTokens;
+        const outputTokens = anthropic?.output_tokens ?? normalized?.completionTokens;
+
+        if (inputTokens === undefined && outputTokens === undefined) {
+          // A call completed but reported no usage we recognise. Booking zero
+          // here is what turned a field-name mismatch into an unmetered spend
+          // path, so charge a conservative estimate instead and make the gap
+          // loud. "Could not measure" must never mean "was free".
+          this.logger?.error(
+            "LLM call reported no recognisable token usage — billing a conservative estimate",
+            { llmOutput: output.llmOutput },
+          );
+          this.record({
+            inputTokens: CostTracker.UNMEASURED_INPUT_ESTIMATE,
+            outputTokens: CostTracker.UNMEASURED_OUTPUT_ESTIMATE,
+            totalTokens:
+              CostTracker.UNMEASURED_INPUT_ESTIMATE +
+              CostTracker.UNMEASURED_OUTPUT_ESTIMATE,
+          });
+          return;
+        }
+
+        const input = inputTokens ?? 0;
+        const output_ = outputTokens ?? 0;
+
         this.record({
-          inputTokens: usage.promptTokens ?? 0,
-          outputTokens: usage.completionTokens ?? 0,
-          totalTokens: usage.totalTokens ?? 0,
+          inputTokens: input,
+          outputTokens: output_,
+          // Anthropic sends no total; derive it rather than defaulting to 0.
+          totalTokens: normalized?.totalTokens ?? input + output_,
         });
       },
     };

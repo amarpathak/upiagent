@@ -35,18 +35,23 @@ function validateWebhookUrl(url: string): void {
     throw new Error(`Webhook URL must not target localhost: ${url}`);
   }
 
-  // Block private IP ranges (RFC 1918 + link-local + metadata + IPv6 private)
-  const privatePatterns = [
-    // IPv4 private
+  // Block private IP ranges (RFC 1918 + link-local + metadata + IPv6 private).
+  // Patterns apply to IP literals only, so hostnames such as "fdic.gov" or
+  // "10.example.com" are not mistaken for addresses.
+  const isIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+  const isIpv6 = hostname.includes(":");
+  const ipv4Private = [
     /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
-    // IPv4 link-local + metadata
     /^169\.254\./, /^0\./, /^127\./,
-    // IPv6 private (fc00::/7 = fc00:: and fd00::)
-    /^fc/i, /^fd/i,
-    // IPv6 link-local
-    /^fe80:/i,
   ];
-  for (const pattern of privatePatterns) {
+  const ipv6Private = [
+    /^f[cd]/i, // unique local, fc00::/7
+    /^fe80:/i, // link-local
+    /^::ffff:/i, // IPv4-mapped — could wrap any private IPv4 address
+    /^::$/, // unspecified
+  ];
+  const patterns = isIpv4 ? ipv4Private : isIpv6 ? ipv6Private : [];
+  for (const pattern of patterns) {
     if (pattern.test(hostname)) {
       throw new Error(`Webhook URL must not target private/internal addresses: ${url}`);
     }

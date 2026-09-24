@@ -53,6 +53,9 @@ const ALL_BANK_SENDERS = [
   "alerts@canarabank.com",
   // Indian Bank
   "alerts@indianbank.co.in",
+  // Federal Bank / Fi Money
+  "transactions@fi.money",
+  "alerts@federalbank.co.in",
   // PhonePe
   "noreply@phonepe.com",
   // Google Pay
@@ -68,8 +71,8 @@ const DEFAULT_BANK_ALERT_QUERY = ALL_BANK_SENDERS
   .join(" OR ");
 
 /**
- * Set of known bank sender email addresses.
- * Used for post-fetch validation to ensure emails genuinely came from trusted senders.
+ * Set of known bank sender email addresses (built-in).
+ * Merchants can extend this with custom_bank_senders in their settings.
  */
 const KNOWN_BANK_SENDERS: Set<string> = new Set(ALL_BANK_SENDERS);
 
@@ -83,18 +86,24 @@ function extractEmailAddress(from: string): string {
 }
 
 /**
- * Validates that an email's sender is in the known bank senders list.
- * Returns true if valid, false (with a console warning) if not.
+ * Build a merged set of known + custom senders for validation.
  */
-function validateSender(from: string): boolean {
-  const email = extractEmailAddress(from);
-  if (KNOWN_BANK_SENDERS.has(email)) {
-    return true;
+function buildSenderSet(customSenders?: string[]): Set<string> {
+  if (!customSenders || customSenders.length === 0) return KNOWN_BANK_SENDERS;
+  const merged = new Set(KNOWN_BANK_SENDERS);
+  for (const s of customSenders) {
+    merged.add(s.trim().toLowerCase());
   }
-  console.warn(
-    `[GmailClient] Filtered out email from unknown sender: ${from}`,
-  );
-  return false;
+  return merged;
+}
+
+/**
+ * Build a Gmail search query that includes both built-in and custom senders.
+ */
+function buildSearchQuery(customSenders?: string[]): string {
+  if (!customSenders || customSenders.length === 0) return DEFAULT_BANK_ALERT_QUERY;
+  const extra = customSenders.map((s) => `from:${s.trim().toLowerCase()}`).join(" OR ");
+  return `${DEFAULT_BANK_ALERT_QUERY} OR ${extra}`;
 }
 
 export interface GmailWatchResult {
@@ -104,8 +113,10 @@ export interface GmailWatchResult {
 
 export class GmailClient {
   private gmail: gmail_v1.Gmail;
+  private senderSet: Set<string>;
+  private searchQuery: string;
 
-  constructor(credentials: GmailCredentials) {
+  constructor(credentials: GmailCredentials, customSenders?: string[]) {
     const oauth2Client = new google.auth.OAuth2(
       credentials.clientId,
       credentials.clientSecret,
@@ -117,6 +128,8 @@ export class GmailClient {
     });
 
     this.gmail = google.gmail({ version: "v1", auth: oauth2Client });
+    this.senderSet = buildSenderSet(customSenders);
+    this.searchQuery = buildSearchQuery(customSenders);
   }
 
   /**
@@ -155,8 +168,13 @@ export class GmailClient {
    * Called inside the Pub/Sub push handler to get only the emails that
    * arrived since the last known state — avoids re-processing old emails.
    *
+   * No sender filtering here — the push path already scopes to new emails only,
+   * and the LLM pre-gate (shouldSkipLlm) + security layers (bank_source with
+   * confidence threshold) handle unknown senders safely. This prevents silently
+   * dropping emails from banks not yet in the built-in registry.
+   *
    * @param startHistoryId The historyId from the last watch or push notification
-   * @returns New EmailMessages since that point, filtered to known bank senders
+   * @returns New EmailMessages since that point
    */
   async fetchSinceHistory(startHistoryId: string): Promise<EmailMessage[]> {
     let res;
@@ -199,8 +217,7 @@ export class GmailClient {
       }),
     );
 
-    const parsed = messages.filter((msg): msg is EmailMessage => msg !== null);
-    return parsed.filter((msg) => validateSender(msg.from));
+    return messages.filter((msg): msg is EmailMessage => msg !== null);
   }
 
   /**
@@ -214,13 +231,13 @@ export class GmailClient {
     const { lookbackMinutes = 30, maxResults = 10, query } = options;
 
     const afterTimestamp = Math.floor((Date.now() - lookbackMinutes * 60 * 1000) / 1000);
-    const searchQuery = query
+    const finalQuery = query
       ? `${query} after:${afterTimestamp}`
-      : `(${DEFAULT_BANK_ALERT_QUERY}) after:${afterTimestamp}`;
+      : `(${this.searchQuery}) after:${afterTimestamp}`;
 
     const listResponse = await this.gmail.users.messages.list({
       userId: "me",
-      q: searchQuery,
+      q: finalQuery,
       maxResults,
     });
 
@@ -240,17 +257,20 @@ export class GmailClient {
           format: "full",
         });
 
-        // Parsing is delegated to the parser module — pure functions
-        // that are tested independently in gmail.test.ts
         return parseGmailMessage(detail.data);
       }),
     );
 
     const parsed = messages.filter((msg): msg is EmailMessage => msg !== null);
 
-    // Post-fetch sender validation: even though the Gmail query filters by
-    // sender, the `from` field could be spoofed or the query could be
-    // overridden via options.query. Filter out anything not from a known bank.
-    return parsed.filter((msg) => validateSender(msg.from));
+    // Post-fetch sender validation: ensure emails are from known banks
+    // (built-in + merchant's custom senders). Emails from unknown senders
+    // are filtered out to avoid wasting LLM tokens on spam.
+    return parsed.filter((msg) => {
+      const email = extractEmailAddress(msg.from);
+      if (this.senderSet.has(email)) return true;
+      console.warn(`[GmailClient] Filtered out email from unknown sender: ${msg.from}`);
+      return false;
+    });
   }
 }

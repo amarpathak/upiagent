@@ -43,6 +43,11 @@ Unit tests (in `src/**/__tests__/`) run without any credentials.
 5. Update the README if you're changing the public API
 6. For security-related changes, add a test that demonstrates the vulnerability and its fix
 
+> **How changes land:** `src/`, `tests/` and `migrations/` are mirrored from the
+> package that powers the hosted service. PRs here are reviewed and merged as
+> usual, then ported upstream so the next sync keeps them — you don't need to do
+> anything extra.
+
 ## Code Style
 
 - ESLint and Prettier are configured — run `npm run lint` before submitting

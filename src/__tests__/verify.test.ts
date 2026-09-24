@@ -55,6 +55,58 @@ describe("verifyPayment", () => {
     expect(result.payment!.amount).toBe(499.37);
   });
 
+  it("overrides a wrong LLM bank guess with the sender-registry match", async () => {
+    // testEmail.from is alerts@hdfcbank.net (a known HDFC sender), but the LLM
+    // hallucinates a different bank from the email body. The registry match
+    // must win — this is what displays to merchants and customers.
+    mockParse.mockResolvedValueOnce({
+      amount: 499.37,
+      upiReferenceId: "412345678901",
+      senderName: "John Doe",
+      senderUpiId: "john@ybl",
+      bankName: "ICICI Bank", // wrong — should be overridden
+      timestamp: new Date().toISOString(),
+      status: "success",
+      rawSubject: "HDFC Bank Alert",
+      confidence: 0.9,
+      isPaymentEmail: true,
+    });
+
+    const result = await verifyPayment(testEmail, {
+      llm: testLlmConfig,
+      expected: { amount: 499.37 },
+    });
+
+    expect(result.payment!.bankName).toBe("HDFC Bank");
+  });
+
+  it("keeps the LLM's bank guess when the sender is not in the registry", async () => {
+    const unknownSenderEmail: EmailMessage = {
+      ...testEmail,
+      from: "alerts@somenewbank.co.in",
+    };
+
+    mockParse.mockResolvedValueOnce({
+      amount: 499.37,
+      upiReferenceId: "412345678901",
+      senderName: "John Doe",
+      senderUpiId: "john@ybl",
+      bankName: "Some New Bank",
+      timestamp: new Date().toISOString(),
+      status: "success",
+      rawSubject: "Some New Bank Alert",
+      confidence: 0.9,
+      isPaymentEmail: true,
+    });
+
+    const result = await verifyPayment(unknownSenderEmail, {
+      llm: testLlmConfig,
+      expected: { amount: 499.37 },
+    });
+
+    expect(result.payment!.bankName).toBe("Some New Bank");
+  });
+
   it("returns unverified when amount does not match", async () => {
     mockParse.mockResolvedValueOnce({
       amount: 500.00,

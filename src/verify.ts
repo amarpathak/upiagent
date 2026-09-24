@@ -1,7 +1,7 @@
 /**
  * Unified Payment Verification API
  *
- * This is the primary API for upiagent. It provides two functions:
+ * This is the primary API for upiagent v1. It provides two functions:
  *
  * 1. verifyPayment(email, options) — verify a single email message
  * 2. fetchAndVerifyPayment(options) — fetch from Gmail + verify in a loop
@@ -21,7 +21,7 @@ import type { DedupStore } from "./security/dedup.js";
 import { parsePaymentEmail } from "./llm/chain.js";
 import { SecurityValidator } from "./security/validator.js";
 import { InMemoryDedupStore } from "./security/dedup.js";
-import { shouldSkipLlm } from "./security/bank-registry.js";
+import { shouldSkipLlm, isKnownBankEmail, getBankDisplayName } from "./security/bank-registry.js";
 import { CostTracker } from "./utils/cost.js";
 import { LlmRateLimiter } from "./utils/rate-limiter.js";
 import { LlmRateLimitError } from "./utils/errors.js";
@@ -44,6 +44,8 @@ export interface VerifyPaymentOptions {
   expectedUtrs?: string[];
   dedup?: DedupStore;
   rateLimiter?: LlmRateLimiter;
+  /** Bucket for `rateLimiter` (e.g. a merchant ID). Defaults to one global bucket. */
+  rateLimitKey?: string;
   costTracker?: CostTracker;
   stepLogger?: StepLogger;
   preset?: VerificationPreset;
@@ -51,6 +53,8 @@ export interface VerifyPaymentOptions {
 
 export interface FetchAndVerifyOptions extends VerifyPaymentOptions {
   gmail: GmailCredentials;
+  /** Merchant-specific bank sender emails (merged with built-in list) */
+  customBankSenders?: string[];
   lookbackMinutes?: number;
   maxEmails?: number;
   /** Gmail message IDs already parsed by previous polls — skip to save LLM tokens */
@@ -142,7 +146,7 @@ export async function verifyPayment(
   // ── Step 2: Rate limiter ──────────────────────────────────────
   if (options.rateLimiter) {
     try {
-      await options.rateLimiter.acquire();
+      await options.rateLimiter.acquire(options.rateLimitKey);
       log?.log("rate_limit", { acquired: true });
     } catch (err) {
       if (err instanceof LlmRateLimitError) {
@@ -164,6 +168,18 @@ export async function verifyPayment(
   log?.log("llm_call", { email_id: email.id, provider: options.llm.provider, model: options.llm.model, body_length: email.body.length });
 
   const parsed = await parsePaymentEmail(email, options.llm, callbacks);
+
+  // The LLM's bankName is a free-text guess (no enum, no cross-check) and can
+  // mislabel the bank even when the sender is unambiguous. When the sender
+  // address matches our deterministic registry, that match is authoritative —
+  // override the model's guess so the displayed/stored bank always reflects
+  // who the email actually came from, not what the model inferred from body text.
+  if (parsed) {
+    const bankMatch = isKnownBankEmail(email.from);
+    if (bankMatch.known) {
+      parsed.bankName = getBankDisplayName(bankMatch.bankName);
+    }
+  }
 
   log?.log("llm_response", {
     email_id: email.id,
@@ -294,7 +310,7 @@ export async function fetchAndVerifyPayment(
   options: FetchAndVerifyOptions,
 ): Promise<VerificationResult> {
   const log = options.stepLogger;
-  const client = new GmailClient(options.gmail);
+  const client = new GmailClient(options.gmail, options.customBankSenders);
 
   const emails = await client.fetchBankAlerts({
     lookbackMinutes: options.lookbackMinutes ?? 30,
@@ -349,7 +365,7 @@ export async function fetchAndVerifyPayment(
   let lastResult: VerificationResult | null = null;
 
   for (const email of newEmails) {
-    log?.log("email_check", { email_id: email.id, sender: email.from, subject: email.subject, body_snippet: email.body.slice(0, 500), body_length: email.body.length });
+    log?.log("email_check", { email_id: email.id, sender: email.from, subject: email.subject, body_length: email.body.length });
     const result = await verifyPayment(email, options);
 
     if (result.verified) {

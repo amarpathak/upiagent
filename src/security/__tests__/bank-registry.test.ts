@@ -72,16 +72,58 @@ describe("bank-registry", () => {
       ).toBe(true);
     });
 
-    it("does not skip when sender is known bank", () => {
+    it("does not skip a credit alert from a known bank", () => {
       expect(
-        shouldSkipLlm("alerts@hdfcbank.net", "Some random text")
+        shouldSkipLlm("alerts@hdfcbank.net", "Rs. 500.00 has been credited to your account")
       ).toBe(false);
     });
 
-    it("does not skip when currency content exists even from unknown sender", () => {
+    // These are the leak cases: a known bank sender previously bypassed the
+    // gate entirely, so every debit/OTP/statement mail cost a full LLM call.
+    it("skips a debit alert from a known bank", () => {
+      expect(
+        shouldSkipLlm("alerts@hdfcbank.net", "Rs. 500.00 has been debited from your account")
+      ).toBe(true);
+    });
+
+    it("skips an OTP mail from a known bank", () => {
+      expect(
+        shouldSkipLlm("alerts@hdfcbank.net", "Your OTP is 123456. Do not share it.")
+      ).toBe(true);
+    });
+
+    it("skips a statement notice from a known bank", () => {
+      expect(
+        shouldSkipLlm("alerts@hdfcbank.net", "Your e-statement is ready. Minimum amount due Rs. 2,000.00")
+      ).toBe(true);
+    });
+
+    it("does not skip a mixed template that leads with the credit", () => {
+      expect(
+        shouldSkipLlm(
+          "alerts@hdfcbank.net",
+          "Rs. 500.00 credited to A/c XX12. Reply STOP to stop debit alerts."
+        )
+      ).toBe(false);
+    });
+
+    it("does not skip a short bank template with no stated direction", () => {
+      expect(
+        shouldSkipLlm("alerts@hdfcbank.net", "Rs.500.00 - A/c XX1234 - UPI/412345678901")
+      ).toBe(false);
+    });
+
+    it("does not skip a credit from an unknown sender", () => {
       expect(
         shouldSkipLlm("unknown@bank.com", "Rs. 500.00 credited")
       ).toBe(false);
+    });
+
+    it("skips a currency mail from an unknown sender with no credit language", () => {
+      // Marketing and invoices carry amounts but are not incoming payments.
+      expect(
+        shouldSkipLlm("deals@shop.com", "Flat Rs. 500 off your next purchase!")
+      ).toBe(true);
     });
   });
 });

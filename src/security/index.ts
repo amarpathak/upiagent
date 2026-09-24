@@ -5,8 +5,10 @@ export {
   registerBankPattern,
   isKnownBankEmail,
   hasCurrencyContent,
+  hasCreditContent,
   shouldSkipLlm,
   resetRegistry,
+  getBankDisplayName,
 } from "./bank-registry.js";
 export type { BankPattern } from "./bank-registry.js";
 export type {

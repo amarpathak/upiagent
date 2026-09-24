@@ -76,3 +76,86 @@ export function buildUpiIntentUrl(
   // URLSearchParams encodes spaces as '+', but UPI apps expect '%20'
   return `upi://pay?${params.toString().replace(/\+/g, "%20")}`;
 }
+
+/**
+ * App-specific UPI deep link schemes.
+ *
+ * Generic `upi://pay` intents triggered from web browsers get flagged as spam
+ * by PhonePe, Paytm, and other UPI apps. App-specific schemes bypass this
+ * because they tell the OS to open that specific app directly, avoiding the
+ * generic intent resolver that triggers spam filters.
+ *
+ * QR scanning still uses generic `upi://pay` (always trusted by apps).
+ * These app-specific schemes are only for "Open in X" buttons on web.
+ */
+export const UPI_APP_SCHEMES: Record<string, { name: string; scheme: string; icon?: string; android?: string; ios?: string }> = {
+  gpay: {
+    name: "Google Pay",
+    scheme: "tez://upi/pay",
+    android: "com.google.android.apps.nbu.paisa.user",
+    ios: "tez://",
+  },
+  phonepe: {
+    name: "PhonePe",
+    scheme: "phonepe://pay",
+    android: "com.phonepe.app",
+    ios: "phonepe://",
+  },
+  paytm: {
+    name: "Paytm",
+    scheme: "paytmmp://pay",
+    android: "net.one97.paytm",
+    ios: "paytmmp://",
+  },
+  bhim: {
+    name: "BHIM",
+    scheme: "bhim://pay",
+    android: "in.org.npci.upiapp",
+    ios: "bhim://",
+  },
+  amazonpay: {
+    name: "Amazon Pay",
+    scheme: "amazonpay://pay",
+    android: "in.amazon.mShop.android.shopping",
+  },
+  cred: {
+    name: "CRED",
+    scheme: "cred://upi/pay",
+    android: "com.dreamplug.androidapp",
+  },
+};
+
+/**
+ * Build an app-specific UPI intent URL.
+ *
+ * Instead of `upi://pay?pa=...`, returns `phonepe://pay?pa=...` (for PhonePe)
+ * or `tez://upi/pay?pa=...` (for GPay), etc.
+ *
+ * Use the generic `upi://pay` for QR codes (always trusted).
+ * Use app-specific URLs for "Open in X" buttons on web pages.
+ */
+export function buildAppSpecificIntentUrl(
+  genericIntentUrl: string,
+  appId: keyof typeof UPI_APP_SCHEMES,
+): string {
+  const app = UPI_APP_SCHEMES[appId];
+  if (!app) return genericIntentUrl;
+  const queryString = genericIntentUrl.replace("upi://pay?", "");
+  return `${app.scheme}?${queryString}`;
+}
+
+/**
+ * Returns all supported UPI app deep link URLs for a given generic intent.
+ * Useful for rendering a list of "Pay with X" buttons.
+ */
+export function buildAllAppIntentUrls(
+  genericIntentUrl: string,
+): Array<{ id: string; name: string; url: string; android?: string; ios?: string }> {
+  return Object.entries(UPI_APP_SCHEMES).map(([id, app]) => ({
+    id,
+    name: app.name,
+    url: buildAppSpecificIntentUrl(genericIntentUrl, id),
+    android: app.android,
+    ios: app.ios,
+  }));
+}

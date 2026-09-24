@@ -31,7 +31,7 @@ export type { VerifyPaymentOptions, FetchAndVerifyOptions, VerificationPreset } 
 
 // Payment — QR code generation and UPI intent URLs
 export { createPayment, createPaymentSvg } from "./payment/index.js";
-export { buildUpiIntentUrl, generateTransactionId } from "./payment/index.js";
+export { buildUpiIntentUrl, generateTransactionId, buildAppSpecificIntentUrl, buildAllAppIntentUrls, UPI_APP_SCHEMES } from "./payment/index.js";
 export type { MerchantConfig, CreatePaymentOptions, PaymentRequest } from "./payment/index.js";
 
 // Gmail adapter — fetch bank alert emails
@@ -48,7 +48,7 @@ export type { LlmConfig, LlmProvider } from "./llm/index.js";
 export { SecurityValidator } from "./security/index.js";
 export { InMemoryDedupStore, type DedupStore } from "./security/index.js";
 export { PostgresDedupStore } from "./security/index.js";
-export { registerBankPattern, isKnownBankEmail } from "./security/index.js";
+export { registerBankPattern, isKnownBankEmail, shouldSkipLlm, hasCreditContent } from "./security/index.js";
 export type { BankPattern } from "./security/index.js";
 export type {
   SecurityConfig,
@@ -99,6 +99,10 @@ export type {
   WebhookDeliveryResult,
   WebhookConfig,
 } from "./webhook/index.js";
+
+// Notification — Android UPI notification parsing (no LLM needed)
+export { parseNotification, isKnownUpiApp } from "./notification/index.js";
+export type { NotificationData, ParsedNotification } from "./notification/index.js";
 
 // Client SDK — thin wrapper around the UpiAgent SaaS API
 export { UpiAgent, UpiAgentApiError } from "./client.js";
