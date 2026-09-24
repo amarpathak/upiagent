@@ -58,7 +58,7 @@ npm install upiagent
 
 ## Quick Start (SaaS API)
 
-The fastest way to accept UPI payments. Get an API key from [dashboard.upiagent.dev](https://dashboard.upiagent.dev) and start accepting payments in 5 minutes.
+The fastest way to accept UPI payments. Get an API key from [beta-dashboard.upiagent.live](https://beta-dashboard.upiagent.live) and start accepting payments in 5 minutes. Full HTTP reference: [API reference](https://github.com/amarpathak/upiagent/blob/main/docs/api-reference.md) (also below).
 
 ```ts
 import { UpiAgent } from "upiagent/client";
@@ -76,16 +76,23 @@ const payment = await upi.createPayment({
 // payment.qrDataUrl → base64 PNG for <img>
 // payment.intentUrl → upi://pay?... for mobile deep link
 
-// 3. After customer pays, trigger verification
-const result = await upi.verify(payment.id);
-if (result.verified) {
-  console.log("Paid!", result.payment.upiReferenceId);
-}
-
-// 4. Or poll status
+// 3. Poll status (free) — or receive a webhook
 const status = await upi.getStatus(payment.id);
-// status.status === "verified" | "pending" | "expired"
+// status.status: "pending" | "claimed" | "verified" | "expired" | "cancelled"
+//   claimed  → customer's screenshot passed every check (OK for low-value goods)
+//   verified → confirmed by your bank (OK for anything)
+
+// 4. Optional: settle instantly from the customer's payment screenshot
+const proof = await upi.submitProof(payment.id, { image: screenshotDataUrl });
+if (!proof.accepted) console.log("Do not deliver:", proof.reasons);
+
+// Also: upi.verify(id) (check Gmail now; spends LLM tokens), upi.cancel(id),
+// upi.listPayments({ status, since, limit, cursor }), upi.getEvidence(id), upi.getUsage()
 ```
+
+Responses are validated against the Zod schemas in `upiagent/contracts`; a
+malformed response or an API error throws `UpiAgentApiError` (`message`,
+`status`, `body`).
 
 ### One-step: Create and wait
 
@@ -157,7 +164,7 @@ Local (stdio) — add to your MCP client config:
 }
 ```
 
-Hosted (HTTP): `https://upiagent.live/api/mcp` with `Authorization: Bearer upi_ak_...`.
+Hosted (HTTP): `https://beta.upiagent.live/api/mcp` with `Authorization: Bearer upi_ak_...`.
 
 | Tool | Purpose |
 |---|---|
@@ -542,6 +549,59 @@ const parsed = await parsePaymentEmail(email, llmConfig);
 
 ---
 
+### Email pre-screen (cut LLM cost)
+
+Emails that pass the free sender/credit regex gate can be pre-screened by a
+cheap classifier before the extraction LLM runs. `JevClassifier` uses
+TypeSafe's Jev model (calibrated probabilities over credit / debit / OTP /
+statement / promotional, ~$0.04 per million input tokens):
+
+```ts
+import { verifyPayment, JevClassifier } from "upiagent";
+
+const classifier = new JevClassifier({ apiKey: process.env.TYPESAFE_API_KEY! });
+const result = await verifyPayment(email, { llm, expected: { amount: 499.37 }, classifier });
+// result.classification → { kind, creditProbability, suspicionProbability, ... }
+```
+
+Emails with `creditProbability < 0.15` (`minCreditProbability`) skip the LLM.
+A classifier error falls through to the LLM — the gate can save money but
+never lose a payment — and a high `suspicionProbability` only lowers
+confidence. The classifier never decides that a payment happened.
+
+### Parse once, match many
+
+`verifyPayment` is `extractPayment` + `matchParsedPayment`. When one email
+must be checked against many pending payments, extract once and match
+without further LLM calls:
+
+```ts
+import { extractPayment, matchParsedPayment } from "upiagent";
+
+const extraction = await extractPayment(email, { llm, classifier });
+if (extraction.status === "extracted") {
+  for (const p of pendingPayments) {
+    const r = await matchParsedPayment(extraction.payment, email, { expected: { amount: p.amount } });
+    if (r.verified) { /* p is paid */ break; }
+  }
+}
+```
+
+### Screenshot proof
+
+```ts
+import { decodeProofImage, extractScreenshot, adjudicateProof } from "upiagent";
+
+const image = decodeProofImage(dataUrl);                  // png/jpeg/webp, ≤ 3 MB
+const read = await extractScreenshot(image, llm);         // one vision call — transcribes only
+const verdict = adjudicateProof(read, {                   // pure, deterministic
+  amount: 499.37, payeeUpiId: "shop@ybl", createdAt: paymentCreatedAt,
+});
+// verdict: { accepted, utr, confidence, reasons[] } — also check verdict.utr is unused in your store
+```
+
+---
+
 ## Security Layers
 
 `SecurityValidator` runs a 5-layer fail-fast pipeline. You can instantiate it directly for custom verification flows:
@@ -698,15 +758,12 @@ const utrStore = new InMemoryUtrStore();
 Deliver HMAC-signed payment events to your backend or a third party.
 
 ```ts
-import { WebhookSender, signWebhookPayload, verifyWebhookSignature } from "upiagent";
-import type { WebhookConfig, WebhookPayload } from "upiagent";
+import { WebhookSender } from "upiagent";
+import type { WebhookPayload } from "upiagent";
 
-const config: WebhookConfig = {
-  url: "https://your-server.com/webhooks/payment",
-  secret: process.env.WEBHOOK_SECRET!,
-};
-
-const sender = new WebhookSender(config);
+// Retries: 3 attempts after 1s, 5s, 25s by default. HTTPS only; private and
+// internal addresses are rejected.
+const sender = new WebhookSender();
 
 const payload: WebhookPayload = {
   event: "payment.verified",
@@ -724,7 +781,9 @@ const payload: WebhookPayload = {
   },
 };
 
-const delivery = await sender.send(payload);
+// The secret is hex; it keys an HMAC-SHA256 of the raw body, sent as
+// `X-UpiAgent-Signature: sha256=<hex>`.
+const delivery = await sender.send("https://your-server.com/webhooks/payment", process.env.WEBHOOK_SECRET_HEX!, payload);
 // delivery.delivered  — true/false
 // delivery.attempts   — number of attempts made
 // delivery.responseStatus — HTTP status from your server
@@ -734,8 +793,9 @@ const delivery = await sender.send(payload);
 
 | Event | When |
 |---|---|
-| `payment.verified` | Payment passed all security layers |
-| `payment.expired` | Session timed out without verification |
+| `payment.claimed` | Customer's payment screenshot passed every check (optimistic; hosted service) |
+| `payment.verified` | Bank evidence confirmed the payment |
+| `payment.expired` | Payment request timed out unpaid |
 
 **Verify signatures on your server:**
 
@@ -744,9 +804,9 @@ import { verifyWebhookSignature } from "upiagent";
 
 // In your webhook handler:
 const isValid = verifyWebhookSignature(
-  rawBodyString,
+  rawBodyString, // the raw request body, not re-serialised JSON
   request.headers["x-upiagent-signature"],
-  process.env.WEBHOOK_SECRET!,
+  process.env.WEBHOOK_SECRET_HEX!,
 );
 
 if (!isValid) {
